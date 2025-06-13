@@ -46,12 +46,17 @@ const CATEGORY_MAP = {
 
     // “카카오계정으로 로그인” 버튼 클릭
     await page.click('.btn_login.link_kakao_id');
-    // 카카오 로그인 폼 로드 대기
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    // 폼이 바뀔 때까지 대기 (카카오 폼의 아이디 입력란이 보여질 때까지)
+    await page.waitForSelector('input#loginId--1', { visible: true });
     // await page.goto(KAKAO_LOGIN_URL, { waitUntil: 'networkidle2' });
-    await page.type('input[name="#loginId--1"]', process.env.TISTORY_ID);
-    await page.type('input[name="#password--2"]', process.env.TISTORY_PASSWORD);
-    await page.click('button[type="submit"]');
+    // 3) 실제 카카오 로그인 폼에 아이디/비번 입력
+    await page.type('input#loginId--1', process.env.TISTORY_ID, {
+        delay: 20
+    });
+    await page.type('input#password--2', process.env.TISTORY_PASSWORD, {
+        delay: 20
+    });
+    await page.click('button.submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
     // 2) 파일별 처리

@@ -5,7 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'posting/**/*.md'
-  workflow_dispatch:      # ← 이걸 추가!
+  workflow_dispatch:
 
 
 jobs:
