@@ -10,33 +10,36 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15   # 전체 잡 타임아웃 설정
+
     steps:
-      - uses: actions/checkout@v3
+      - name: 레포지토리 체크아웃
+        uses: actions/checkout@v3
 
-      # (쿠키 복원 스텝은 그대로)
-      - name: Restore Tistory session cookie
-        run: |
-          echo -n "${{ secrets.TISTORY_COOKIES_B64 }}" \
-            | base64 -d > "$GITHUB_WORKSPACE/cookies.json"
-
-      - name: Use Node.js
+      - name: Node.js 설정 및 npm 캐시 활성화
         uses: actions/setup-node@v3
         with:
           node-version: '16'
+          cache: 'npm'      # ← npm 캐시 자동 활성화
 
-      - name: Install dependencies
-        run: npm ci
+      - name: 의존성 설치
+        run: npm ci --prefer-offline --no-audit --progress=false
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+        timeout-minutes: 10  # 이 단계에만 별도 타임아웃
 
-      - name: Find changed Markdown files
+      - name: 변경된 Markdown 파일 찾기
         id: changed
         run: |
           echo "::set-output name=files::$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^1 \
             | grep '^posting/.*\.md$' || true)"
 
-      - name: Post to Tistory
+      - name: 티스토리 포스팅
         env:
-          FILES:           ${{ steps.changed.outputs.files }}
-          BLOG_NAME:       ahpicl
+          FILES:     ${{ steps.changed.outputs.files }}
+          BLOG_NAME: ahpicl
+          # TISTORY_COOKIES_JSON 은 미리 Secrets에 등록된 쿠키 JSON 문자열
+          TISTORY_COOKIES_JSON: ${{ secrets.TISTORY_COOKIES_JSON }}
           TISTORY_ID:      ${{ secrets.TISTORY_ID }}
           TISTORY_PASSWORD: ${{ secrets.TISTORY_PASSWORD }}
         run: node post_to_tistory.js
