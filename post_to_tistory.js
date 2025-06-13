@@ -56,7 +56,7 @@ const CATEGORY_MAP = {
     await page.type('input#password--2', process.env.TISTORY_PASSWORD, {
         delay: 20
     });
-    await page.click('button.submit"]');
+    await page.click('button.submit');
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
     // 2) 파일별 처리
