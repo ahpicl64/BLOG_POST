@@ -1,0 +1,31 @@
+name: 자동 티스토리 포스팅
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'posting/**/*.md'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 레포지토리 체크아웃
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 티스토리 자동 포스팅
+        env:
+          TISTORY_ID:      ${{ secrets.TISTORY_ID }}
+          TISTORY_PASSWORD:${{ secrets.TISTORY_PASSWORD }}
+          BLOG_NAME:       ahpicl
+        run: npm start

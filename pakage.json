@@ -1,0 +1,13 @@
+{
+    "name": "tistory-uploader",
+    "version": "1.0.0",
+    "description": "GitHub Actions + Puppeteer로 Tistory 자동 포스팅",
+    "scripts": {
+        "start": "node post_to_tistory.js"
+    },
+    "dependencies": {
+        "puppeteer": "^21.0.0",
+        "markdown-it": "^13.0.1",
+        "glob": "^10.2.7"
+    }
+}
