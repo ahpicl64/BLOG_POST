@@ -67,9 +67,27 @@ process.on('uncaughtException', err => {
     }
 
     // 3) 카카오 리다이렉트로 로그인 세션 확인
-    await page.goto(`https://${BLOG_NAME}.tistory.com/manage/new/post`, { waitUntil: 'networkidle2' });
-    // (만약 세션이 만료돼서 로그인 페이지로 리다이렉트되면, 실패 로그가 뜹니다)
 
+    // ② 관리 페이지로 가서 로그인 필요하면 SSO 처리
+    await page.goto(`https://${BLOG_NAME}.tistory.com/manage/posts`, { waitUntil: 'networkidle2' });
+    // “카카오계정으로 로그인” 버튼이 보이면, 아직 로그인 안 된 상태
+    if (await page.$('a.btn_login.link_kakao_id') !== null) {
+        console.log('🔐 로그인 필요, 자동으로 카카오 SSO 수행');
+        await page.click('a.btn_login.link_kakao_id');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+
+        // 카카오 로그인 폼
+        await page.waitForSelector('input#loginId--1', { visible: true });
+        await page.type('input#loginId--1', process.env.TISTORY_ID, { delay: 20 });
+        await page.type('input#password--2', process.env.TISTORY_PASSWORD, { delay: 20 });
+        await page.click('button.submit');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        console.log('✅ 로그인 성공, 세션 쿠키 새로 저장');
+
+        // 쿠키 저장
+        const newCookies = await page.cookies();
+        fs.writeFileSync(COOKIE_PATH, JSON.stringify(newCookies, null, 2));
+    }
     // 4) MD 파일 순회
     for (const absolutePath of files) {
         // 제목/카테고리/본문 준비
