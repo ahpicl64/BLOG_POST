@@ -41,10 +41,14 @@ const CATEGORY_MAP = {
     const page = await browser.newPage();
 
     // 1) 로그인 (카카오 연동)
-    const KAKAO_LOGIN_URL =
-        'https://accounts.kakao.com/login/?continue=' +
-        encodeURIComponent('https://www.tistory.com/auth/kakao/redirect');
-    await page.goto(KAKAO_LOGIN_URL, { waitUntil: 'networkidle2' });
+    // (기존) 티스토리 로그인 폼 직접 사용
+    await page.goto('https://www.tistory.com/auth/login', { waitUntil: 'networkidle2' });
+
+    // “카카오계정으로 로그인” 버튼 클릭
+    await page.click('.btn_login.link_kakao_id');
+    // 카카오 로그인 폼 로드 대기
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    // await page.goto(KAKAO_LOGIN_URL, { waitUntil: 'networkidle2' });
     await page.type('input[name="#loginId--1"]', process.env.TISTORY_ID);
     await page.type('input[name="#password--2"]', process.env.TISTORY_PASSWORD);
     await page.click('button[type="submit"]');
