@@ -58,28 +58,28 @@ on:
 #         with:
 #           path: cookies.json
 #           key: tistory-cookie-cache
-  jobs:
-    publish:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v3
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-        # ① secrets 에 저장된 Base64 문자열을 디코드해 cookies.json 으로 복원
-        - name: Restore Tistory session cookie
-          run: |
-            echo "${{ secrets.TISTORY_COOKIES_B64 }}" \
-              | base64 -d > cookies.json
+      # ① secrets 에 저장된 Base64 문자열을 디코드해 cookies.json 으로 복원
+      - name: Restore Tistory session cookie
+        run: |
+          echo "${{ secrets.TISTORY_COOKIES_B64 }}" \
+            | base64 -d > cookies.json
 
-        - name: Node.js 설정
-          uses: actions/setup-node@v3
-          with:
-            node-version: '16'
+      - name: Node.js 설정
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
 
-        - name: 의존성 설치
-          run: npm ci
+      - name: 의존성 설치
+        run: npm ci
 
-        - name: 티스토리 포스팅
-          env:
-            BLOG_NAME: ahpicl
-            # (TISTORY_ID/PASSWORD 는 쿠키로 인증하므로 불필요)
-          run: node post_to_tistory.js
+      - name: 티스토리 포스팅
+        env:
+          BLOG_NAME: ahpicl
+          # (TISTORY_ID/PASSWORD 는 쿠키로 인증하므로 불필요)
+        run: node post_to_tistory.js
