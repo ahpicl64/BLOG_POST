@@ -16,6 +16,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
+      # 로그인 쿠키는 1~3개월 단위로 갱신
+      - name: Restore Tistory session cookie
+        # GITHUB_WORKSPACE는 자동으로 체크아웃된 리포지토리 루트입니다.
+        run: |
+          echo "${{ secrets.TISTORY_COOKIES_B64 }}" \
+            | base64 -d > "$GITHUB_WORKSPACE/cookies.json"
 
       # 1) 이전에 저장해 둔 cookies.json 이 있으면 복원
       - name: Restore Tistory session cookie

@@ -10,3 +10,4 @@ yarn-debug.log*
 yarn-error.log*
 
 cookies.json
+cookies.b64
