@@ -74,6 +74,18 @@ process.on('uncaughtException', err => {
             fs.writeFileSync(COOKIE_PATH, JSON.stringify(cookies, null, 2));
             console.log('💾 로그인 쿠키 저장 완료:', COOKIE_PATH);
         }
+        // 카카오 로그인 버튼 클릭
+        await page.waitForSelector('a.btn_login.link_kakao_id', { visible: true });
+        await page.click('a.btn_login.link_kakao_id');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+
+        // 카카오 로그인 폼
+        await page.waitForSelector('input#loginId--1', { visible: true });
+        await page.type('input#loginId--1', TISTORY_ID, { delay: 20 });
+        await page.type('input#password--2', TISTORY_PW, { delay: 20 });
+        await page.click('button.submit');
+        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        console.log('✅ 로그인 성공');
 
         // ③ MD 파일 순회
         for (const absolutePath of files) {
