@@ -26,6 +26,6 @@ jobs:
       - name: 티스토리 자동 포스팅
         env:
           TISTORY_ID:      ${{ secrets.TISTORY_ID }}
-          TISTORY_PASSWORD:${{ secrets.TISTORY_PASSWORD }}
+          TISTORY_PASSWORD: ${{ secrets.TISTORY_PASSWORD }}
           BLOG_NAME:       ahpicl
         run: npm start
