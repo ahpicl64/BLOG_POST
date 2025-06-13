@@ -5,27 +5,27 @@ const MarkdownIt = require('markdown-it');
 const puppeteer = require('puppeteer');
 
 const PROJECT_ROOT = path.resolve(__dirname);
-const POSTING_DIR  = path.join(PROJECT_ROOT, 'posting');
-const BLOG_NAME    = process.env.BLOG_NAME || 'ahpicl';
+const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
+const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
 
 const md = new MarkdownIt();
 // 폴더명 → 티스토리 카테고리 이름 매핑
 const CATEGORY_MAP = {
-    'WIL':        'WIL',
+    'WIL': 'WIL',
     'DataStruct': '자료 구조',
-    'Algorithm':  'Algorithm',
-    'CSAPP':      'CS:APP',
-    'Spring':     'Spring',
-    'React':      'React',
-    'Jungle':     'Jungle',
-    'OS':         '운영체제'
+    'Algorithm': 'Algorithm',
+    'CSAPP': 'CS:APP',
+    'Spring': 'Spring',
+    'React': 'React',
+    'Jungle': 'Jungle',
+    'OS': '운영체제'
     // …필요한 카테고리 추가
 };
 
 (async () => {
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox','--disable-setuid-sandbox']
+        executablePath: '/usr/bin/google-chrome-stable', // GitHub Actions 러너에 설치된 Chrome
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
 
@@ -48,25 +48,25 @@ const CATEGORY_MAP = {
     });
 
     for (const absolutePath of files) {
-        const relPath  = path.relative(POSTING_DIR, absolutePath);
-        const folder   = relPath.split(path.sep)[0];
+        const relPath = path.relative(POSTING_DIR, absolutePath);
+        const folder = relPath.split(path.sep)[0];
         const category = CATEGORY_MAP[folder] || '';
 
         const raw = fs.readFileSync(absolutePath, 'utf-8');
         // 3) 첫 번째 h1(# )을 제목으로, 나머지는 본문으로
-        const lines      = raw.split('\n');
-        let   title      = '';
-        const bodyLines  = [];
-        let   foundTitle = false;
+        const lines = raw.split('\n');
+        let title = '';
+        const bodyLines = [];
+        let foundTitle = false;
         for (const line of lines) {
             if (!foundTitle && line.match(/^#\s+/)) {
-                title      = line.replace(/^#\s+/, '').trim();
+                title = line.replace(/^#\s+/, '').trim();
                 foundTitle = true;
             } else {
                 bodyLines.push(line);
             }
         }
-        const bodyMd      = bodyLines.join('\n').trim();
+        const bodyMd = bodyLines.join('\n').trim();
         const contentHtml = md.render(bodyMd);
 
         // 4) 새 글쓰기 페이지 열기
@@ -99,7 +99,7 @@ const CATEGORY_MAP = {
         // const frameHandle = await page.$('iframe.se2_iframe');
         // const frame       = await frameHandle.contentFrame();
         const frameHandle = await page.$('#editor-tistory_ifr');
-        const frame       = await frameHandle.contentFrame();
+        const frame = await frameHandle.contentFrame();
         await frame.evaluate(html => {
             document.body.innerHTML = html;
         }, contentHtml);
@@ -108,11 +108,11 @@ const CATEGORY_MAP = {
         // await page.click('button.btn_publish');
         // await page.waitForSelector('.toast-success', { timeout: 10000 });
         await page.click('#publish-layer-btn');   // 완료
-        await page.waitForSelector('#publish-btn'); 
+        await page.waitForSelector('#publish-btn');
         await page.click('#publish-btn');         // 비공개 저장
 
         // 기존 토스트 대기 대신, 네비게이션 발생을 기다립니다.
-//      await page.waitForSelector('.toast .message', { timeout: 10000 });
+        //      await page.waitForSelector('.toast .message', { timeout: 10000 });
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
         console.log(`✅ [${category}] "${title}" 게시 완료`);

@@ -22,6 +22,8 @@ jobs:
 
       - name: 의존성 설치
         run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
 
       - name: 티스토리 자동 포스팅
         env:
