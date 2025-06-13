@@ -85,8 +85,8 @@ process.on('uncaughtException', err => {
         console.log('✅ 로그인 성공, 세션 쿠키 새로 저장');
 
         // 쿠키 저장
-        const newCookies = await page.cookies();
-        fs.writeFileSync(COOKIE_PATH, JSON.stringify(newCookies, null, 2));
+        // const newCookies = await page.cookies();
+        // fs.writeFileSync(COOKIE_PATH, JSON.stringify(newCookies, null, 2));
     }
     // 4) MD 파일 순회
     for (const absolutePath of files) {
