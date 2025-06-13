@@ -10,22 +10,23 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      # secrets에 저장된 쿠키 JSON 문자열을 그대로 주입
-      TISTORY_COOKIES_JSON: ${{ secrets.TISTORY_COOKIES_JSON }}
-      BLOG_NAME: ahpicl
+    timeout-minutes: 15   # 전체 잡 타임아웃 설정
 
     steps:
       - name: 레포지토리 체크아웃
         uses: actions/checkout@v3
 
-      - name: Node.js 설정
+      - name: Node.js 설정 및 npm 캐시 활성화
         uses: actions/setup-node@v3
         with:
           node-version: '16'
+          cache: 'npm'      # ← npm 캐시 자동 활성화
 
       - name: 의존성 설치
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --progress=false
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+        timeout-minutes: 10  # 이 단계에만 별도 타임아웃
 
       - name: 변경된 Markdown 파일 찾기
         id: changed
@@ -34,6 +35,9 @@ jobs:
             | grep '^posting/.*\.md$' || true)"
 
       - name: 티스토리 포스팅
-        run: node post_to_tistory.js
         env:
-          FILES: ${{ steps.changed.outputs.files }}
+          FILES:     ${{ steps.changed.outputs.files }}
+          BLOG_NAME: ahpicl
+          # TISTORY_COOKIES_JSON 은 미리 Secrets에 등록된 쿠키 JSON 문자열
+          TISTORY_COOKIES_JSON: ${{ secrets.TISTORY_COOKIES_JSON }}
+        run: node post_to_tistory.js
