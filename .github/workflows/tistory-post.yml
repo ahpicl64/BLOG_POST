@@ -67,10 +67,8 @@ jobs:
       # ① 디코드된 cookies.json 복원
       - name: Restore Tistory session cookie
         run: |
-          # -n 옵션으로 echo 가 줄 바꿈을 덧붙이지 않도록 하고
-          # secrets.TISTORY_COOKIES_B64 에 저장된 한 줄짜리 base64 문자열을 디코드
           echo -n "${{ secrets.TISTORY_COOKIES_B64 }}" \
-            | base64 -d > cookies.json
+            | base64 -d > "$GITHUB_WORKSPACE/cookies.json"
 
       - name: Use Node.js
         uses: actions/setup-node@v3
