@@ -6,8 +6,10 @@
         "start": "node post_to_tistory.js"
     },
     "dependencies": {
-        "puppeteer": "^21.0.0",
-        "markdown-it": "^13.0.1",
-        "glob": "^10.2.7"
+        "front-matter": "^4.0.2",
+        "glob": "^10.4.5",
+        "js-yaml": "^4.1.0",
+        "markdown-it": "^13.0.2",
+        "puppeteer": "^21.11.0"
     }
 }
