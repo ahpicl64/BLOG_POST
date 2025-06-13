@@ -64,22 +64,30 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # ① secrets 에 저장된 Base64 문자열을 디코드해 cookies.json 으로 복원
+      # ① 디코드된 cookies.json 복원
       - name: Restore Tistory session cookie
         run: |
-          echo "${{ secrets.TISTORY_COOKIES_B64 }}" \
+          # -n 옵션으로 echo 가 줄 바꿈을 덧붙이지 않도록 하고
+          # secrets.TISTORY_COOKIES_B64 에 저장된 한 줄짜리 base64 문자열을 디코드
+          echo -n "${{ secrets.TISTORY_COOKIES_B64 }}" \
             | base64 -d > cookies.json
 
-      - name: Node.js 설정
+      - name: Use Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
 
-      - name: 의존성 설치
+      - name: Install dependencies
         run: npm ci
 
-      - name: 티스토리 포스팅
+      - name: Find changed Markdown files
+        id: changed
+        run: |
+          echo "::set-output name=files::$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^1 \
+            | grep '^posting/.*\.md$' || true)"
+
+      - name: Post to Tistory
         env:
-          BLOG_NAME: ahpicl
-          # (TISTORY_ID/PASSWORD 는 쿠키로 인증하므로 불필요)
+          FILES:           ${{ steps.changed.outputs.files }}
+          BLOG_NAME:       ahpicl
         run: node post_to_tistory.js
