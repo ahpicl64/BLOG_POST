@@ -7,6 +7,9 @@ const puppeteer = require('puppeteer');
 const PROJECT_ROOT = path.resolve(__dirname);
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
+const files = process.env.FILES
+    ? process.env.FILES.split('\n').map(f => path.join(POSTING_DIR, f.replace(/^posting\//, '')))
+    : glob.sync('**/*.md', { cwd: POSTING_DIR, absolute: true });
 
 const md = new MarkdownIt();
 // 폴더명 → 티스토리 카테고리 이름 매핑

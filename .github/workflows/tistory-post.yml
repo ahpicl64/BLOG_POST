@@ -25,9 +25,21 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
-      - name: 티스토리 자동 포스팅
+      - name: 변경된 MD 파일 찾기
+        id: changed
+        run: |
+          echo "::set-output name=files::$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^1 | grep '^posting/.*\.md$' || true)"
+
+      # - name: 티스토리 자동 포스팅
+      #   env:
+      #     TISTORY_ID:      ${{ secrets.TISTORY_ID }}
+      #     TISTORY_PASSWORD: ${{ secrets.TISTORY_PASSWORD }}
+      #     BLOG_NAME:       ahpicl
+      #   run: npm start
+      - name: 티스토리 포스팅
         env:
-          TISTORY_ID:      ${{ secrets.TISTORY_ID }}
+          FILES: ${{ steps.changed.outputs.files }}
+          TISTORY_ID: ${{ secrets.TISTORY_ID }}
           TISTORY_PASSWORD: ${{ secrets.TISTORY_PASSWORD }}
-          BLOG_NAME:       ahpicl
-        run: npm start
+          BLOG_NAME: ahpicl
+        run: node post_to_tistory.js
