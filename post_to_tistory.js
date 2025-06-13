@@ -1,18 +1,26 @@
+// post_to_tistory.js
+
 const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
+const fm = require('front-matter');
+const yaml = require('js-yaml');
 const MarkdownIt = require('markdown-it');
 const puppeteer = require('puppeteer');
 
 const PROJECT_ROOT = path.resolve(__dirname);
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
+
+// 변경된 파일만 처리 (GitHub Actions에서 전달)
 const files = process.env.FILES
-    ? process.env.FILES.split('\n').map(f => path.join(POSTING_DIR, f.replace(/^posting\//, '')))
+    ? process.env.FILES
+        .split('\n')
+        .map(f => path.join(POSTING_DIR, f.replace(/^posting\//, '')))
+        .filter(f => fs.existsSync(f))
     : glob.sync('**/*.md', { cwd: POSTING_DIR, absolute: true });
 
 const md = new MarkdownIt();
-// 폴더명 → 티스토리 카테고리 이름 매핑
 const CATEGORY_MAP = {
     'WIL': 'WIL',
     'DataStruct': '자료 구조',
@@ -27,98 +35,115 @@ const CATEGORY_MAP = {
 
 (async () => {
     const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/google-chrome-stable', // GitHub Actions 러너에 설치된 Chrome
+        executablePath: '/usr/bin/google-chrome-stable', // CI 환경의 Chrome
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
 
-    // 카카오 로그인 페이지로 리디렉트
+    // 1) 로그인 (카카오 연동)
     const KAKAO_LOGIN_URL =
         'https://accounts.kakao.com/login/?continue=' +
         encodeURIComponent('https://www.tistory.com/auth/kakao/redirect');
-
-    // 1) 로그인
     await page.goto(KAKAO_LOGIN_URL, { waitUntil: 'networkidle2' });
     await page.type('input[name="#loginId--1"]', process.env.TISTORY_ID);
     await page.type('input[name="#password--2"]', process.env.TISTORY_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    // 2) Markdown 파일 순회 (posting 폴더 기준)
-    const files = glob.sync('**/*.md', {
-        cwd: POSTING_DIR,
-        absolute: true
-    });
-
+    // 2) 파일별 처리
     for (const absolutePath of files) {
         const relPath = path.relative(POSTING_DIR, absolutePath);
         const folder = relPath.split(path.sep)[0];
         const category = CATEGORY_MAP[folder] || '';
 
+        // front-matter 파싱
         const raw = fs.readFileSync(absolutePath, 'utf-8');
-        // 3) 첫 번째 h1(# )을 제목으로, 나머지는 본문으로
-        const lines = raw.split('\n');
-        let title = '';
-        const bodyLines = [];
-        let foundTitle = false;
-        for (const line of lines) {
-            if (!foundTitle && line.match(/^#\s+/)) {
-                title = line.replace(/^#\s+/, '').trim();
-                foundTitle = true;
-            } else {
-                bodyLines.push(line);
-            }
-        }
-        const bodyMd = bodyLines.join('\n').trim();
+        const { attributes, body } = fm(raw);
+        let postId = attributes.postId || null;
+
+        // 제목, 본문 준비
+        const lines = body.split('\n');
+        const titleLineIdx = lines.findIndex(l => l.match(/^#\s+/));
+        const title = attributes.title
+            || (titleLineIdx >= 0
+                ? lines[titleLineIdx].replace(/^#\s+/, '').trim()
+                : '');
+        const bodyMd = lines
+            .filter((_, i) => i !== titleLineIdx)
+            .join('\n')
+            .trim();
         const contentHtml = md.render(bodyMd);
 
-        // 4) 새 글쓰기 페이지 열기
-        await page.goto(
-            `https://${BLOG_NAME}.tistory.com/manage/new/post`,
-            { waitUntil: 'networkidle2' }
-        );
+        // 3) 신규 vs 수정 페이지 열기
+        if (postId) {
+            // 수정
+            await page.goto(
+                `https://${BLOG_NAME}.tistory.com/manage/newpost/${postId}?type=post&returnURL=ENTRY`,
+                { waitUntil: 'networkidle2' }
+            );
+        } else {
+            // 신규
+            await page.goto(
+                `https://${BLOG_NAME}.tistory.com/manage/new/post`,
+                { waitUntil: 'networkidle2' }
+            );
+        }
 
-        // 5) 제목 입력
-        // await page.click('input.post-title');
-        // await page.type('input.post-title', title, { delay: 20 });
+        // 4) 제목 입력
         await page.click('textarea#post-title-inp');
         await page.type('textarea#post-title-inp', title, { delay: 20 });
 
-        // 6) 카테고리 선택
-        // await page.click('button.category-selector');
-        // await page.waitForSelector('ul.category-list');
-        // await page.evaluate(…);
+        // 5) 카테고리 선택
         await page.click('#category-btn');
         await page.waitForSelector('#category-list');
         await page.evaluate(cat => {
-            const items = Array.from(
-                document.querySelectorAll('#category-list .mce-menu-item')
-            );
-            const target = items.find(el => el.textContent.trim() === cat);
-            if (target) target.click();
+            document
+                .querySelectorAll('#category-list .mce-menu-item')
+                .forEach(el => {
+                    if (el.textContent.trim() === cat) el.click();
+                });
         }, category);
 
-        // 7) 본문 입력 (iframe 내부)
-        // const frameHandle = await page.$('iframe.se2_iframe');
-        // const frame       = await frameHandle.contentFrame();
+        // 6) 본문 입력
         const frameHandle = await page.$('#editor-tistory_ifr');
         const frame = await frameHandle.contentFrame();
         await frame.evaluate(html => {
             document.body.innerHTML = html;
         }, contentHtml);
 
-        // 8) 발행
-        // await page.click('button.btn_publish');
-        // await page.waitForSelector('.toast-success', { timeout: 10000 });
-        await page.click('#publish-layer-btn');   // 완료
+        // 7) 발행/저장 & postId 추출
+        await page.click('#publish-layer-btn');
         await page.waitForSelector('#publish-btn');
-        await page.click('#publish-btn');         // 비공개 저장
+        // 기다리며 내부 API 요청을 가로채 postId를 읽어 옵니다.
+        const responsePromise = page.waitForResponse(resp =>
+            resp.url().includes('/manage/postWriteProc.json') && resp.status() === 200
+        );
+        await page.click('#publish-btn');
+        const apiResponse = await responsePromise;
+        const data = await apiResponse.json();
+        const newPostId = data.tistory?.postId;
+        if (newPostId) postId = newPostId;
 
-        // 기존 토스트 대기 대신, 네비게이션 발생을 기다립니다.
-        //      await page.waitForSelector('.toast .message', { timeout: 10000 });
-        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        // 8) 신규 등록 시 front-matter 갱신
+        if (!attributes.postId && postId) {
+            const newAttrs = { ...attributes, postId, title };
+            const newRaw = [
+                '---',
+                yaml.dump(newAttrs).trim(),
+                '---',
+                '',
+                `# ${title}`,
+                bodyMd
+            ].join('\n');
+            fs.writeFileSync(absolutePath, newRaw, 'utf-8');
+            console.log(`⚙️ postId(${postId}) 기록: ${relPath}`);
+        }
 
-        console.log(`✅ [${category}] "${title}" 게시 완료`);
+        // 9) 실제 글 URL로 이동(선택)
+        const postUrl = `https://${BLOG_NAME}.tistory.com/${postId}`;
+        await page.goto(postUrl, { waitUntil: 'networkidle2' });
+
+        console.log(`✅ [${category}] "${title}" ${attributes.postId ? '수정' : '신규'} 완료 → ${postUrl}`);
     }
 
     await browser.close();
