@@ -7,85 +7,33 @@ on:
       - 'posting/**/*.md'
   workflow_dispatch:
 
-# jobs:
-#   publish:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: 레포지토리 체크아웃
-#         uses: actions/checkout@v3
-#         with:
-#           submodules: true
-#       # 로그인 쿠키는 1~3개월 단위로 갱신
-#       - name: Restore Tistory session cookie
-#         # GITHUB_WORKSPACE는 자동으로 체크아웃된 리포지토리 루트입니다.
-#         run: |
-#           echo "${{ secrets.TISTORY_COOKIES_B64 }}" \
-#             | base64 -d > "$GITHUB_WORKSPACE/cookies.json"
-
-#       # 1) 이전에 저장해 둔 cookies.json 이 있으면 복원
-#       - name: Restore Tistory session cookie
-#         uses: actions/cache@v3
-#         with:
-#           path: cookies.json
-#           key: tistory-cookie-cache
-
-#       - name: Node.js 설정
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: '16'
-
-#       - name: 의존성 설치
-#         run: npm ci
-#         env:
-#           PUPPETEER_SKIP_DOWNLOAD: 'true'
-
-#       - name: 변경된 MD 파일 찾기
-#         id: changed
-#         run: |
-#           echo "::set-output name=files::$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^1 | grep '^posting/.*\.md$' || true)"
-
-#       - name: 티스토리 포스팅
-#         env:
-#           FILES: ${{ steps.changed.outputs.files }}
-#           BLOG_NAME: ahpicl
-#         run: node post_to_tistory.js
-
-#       # 2) 스크립트가 성공하면 cookies.json 을 다시 캐시에 저장
-#       - name: Save updated Tistory cookie
-#         if: ${{ success() }}
-#         uses: actions/cache@v3
-#         with:
-#           path: cookies.json
-#           key: tistory-cookie-cache
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      # secrets에 저장된 쿠키 JSON 문자열을 그대로 주입
+      TISTORY_COOKIES_JSON: ${{ secrets.TISTORY_COOKIES_JSON }}
+      BLOG_NAME: ahpicl
+
     steps:
-      - uses: actions/checkout@v3
+      - name: 레포지토리 체크아웃
+        uses: actions/checkout@v3
 
-      # ① 디코드된 cookies.json 복원
-      - name: Restore Tistory session cookie
-        run: |
-          echo -n "${{ secrets.TISTORY_COOKIES_B64 }}" \
-            | base64 -d > "$GITHUB_WORKSPACE/cookies.json"
-
-      - name: Use Node.js
+      - name: Node.js 설정
         uses: actions/setup-node@v3
         with:
           node-version: '16'
 
-      - name: Install dependencies
+      - name: 의존성 설치
         run: npm ci
 
-      - name: Find changed Markdown files
+      - name: 변경된 Markdown 파일 찾기
         id: changed
         run: |
           echo "::set-output name=files::$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^1 \
             | grep '^posting/.*\.md$' || true)"
 
-      - name: Post to Tistory
-        env:
-          FILES:           ${{ steps.changed.outputs.files }}
-          BLOG_NAME:       ahpicl
+      - name: 티스토리 포스팅
         run: node post_to_tistory.js
+        env:
+          FILES: ${{ steps.changed.outputs.files }}
