@@ -7,7 +7,8 @@ const puppeteer = require('puppeteer');
 const PROJECT_ROOT = path.resolve(__dirname);
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
-const HEADLESS = true;  // GitHub Actions 에선 무조건 headless
+// const HEADLESS = true;  // GitHub Actions 에선 무조건 headless
+const HEADLESS = process.env.HEADLESS !== 'false'
 const CHROME_PATH = process.env.CHROME_PATH
     || (process.platform === 'darwin'
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -46,7 +47,7 @@ process.on('uncaughtException', err => {
     // 1) 브라우저 띄우기
     const browser = await puppeteer.launch({
         executablePath: CHROME_PATH,
-        headless: 'new',
+        headless: HEADLESS ? 'new' : false,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     const page = await browser.newPage();
@@ -82,7 +83,22 @@ process.on('uncaughtException', err => {
         await page.type('input#password--2', process.env.TISTORY_PASSWORD, { delay: 20 });
         await page.click('button.submit');
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        console.log('✅ 로그인 성공, 세션 쿠키 새로 저장');
+        // 카카오 2단계 인증 페이지 검증
+        if (await page.$('h2.tit_certify, h2.tit_g.tit_certify') !== null) {
+            console.log('🔒 2단계 인증 페이지 감지 – “브라우저 기억” 체크');
+            await page.click('input#isRememberBrowser--5');
+            // 이제 카카오톡에서 “확인”을 눌러주면, 페이지가 자동 리다이렉트됩니다
+            console.log('🕐 카카오톡으로 인증 후 넘어올 때까지 대기…');
+            await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        }
+        // 카카오 로그인 동의 페이지 감지
+        if (await page.$('button.btn_agree') !== null) {
+            console.log('🔑 동의 페이지 감지 – “계속하기” 클릭');
+            await page.click('button.btn_agree');
+            await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        }
+        console.log('✅ 로그인 완료');
+        // console.log('✅ 로그인 성공, 세션 쿠키 새로 저장');
 
         // 쿠키 저장
         // const newCookies = await page.cookies();
@@ -108,16 +124,24 @@ process.on('uncaughtException', err => {
         }
         const html = md.render(bodyLines.join('\n'));
 
-        // 5) 새 글쓰기 페이지
-        await page.goto(`https://${BLOG_NAME}.tistory.com/manage/new/post`, { waitUntil: 'networkidle2' });
+        // 5) 글 관리 페이지
+        page.once('dialog', async dialog => {
+            console.log('🔔 임시 저장 확인 팝업 감지 — 취소 처리');
+            await dialog.dismiss();
+        });
+        // await page.goto(`https://${BLOG_NAME}.tistory.com/manage/posts`, { waitUntil: 'networkidle2' });
+        await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
+        // if 임시 저장 alert
 
         // 6) 제목 입력
         await page.waitForSelector('textarea#post-title-inp', { visible: true });
         await page.click('textarea#post-title-inp');
         await page.type('textarea#post-title-inp', title, { delay: 20 });
+        await page.waitForTimeout(200); 
 
         // 7) 카테고리 선택
         await page.click('#category-btn');
+        await page.waitForTimeout(200); 
         await page.waitForSelector('#category-list .mce-menu-item', { visible: true });
         await page.evaluate(cat => {
             document.querySelectorAll('#category-list .mce-menu-item')
@@ -125,6 +149,9 @@ process.on('uncaughtException', err => {
                     if (li.textContent.trim() === cat) li.click();
                 });
         }, category);
+        // 카테고리 선택 후 잠깐 대기…
+        await page.waitForTimeout(300);
+
 
         // 8) 본문 입력 (iframe)
         const frameHandle = await page.$('#editor-tistory_ifr');
@@ -133,11 +160,15 @@ process.on('uncaughtException', err => {
         await frame.evaluate(content => {
             document.body.innerHTML = content;
         }, html);
+        await page.waitForTimeout(500);
+
 
         // 9) 발행 (완료 → 비공개 저장)
         await page.click('#publish-layer-btn');
+        await page.waitForTimeout(200);
         await page.waitForSelector('#publish-btn', { visible: true });
         await page.click('#publish-btn');
+        await page.waitForTimeout(500);
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
         console.log(`✅ [${category}] "${title}" 게시 완료`);
