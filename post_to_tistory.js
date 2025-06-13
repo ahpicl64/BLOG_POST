@@ -3,8 +3,10 @@ const glob = require('glob');
 const path = require('path');
 const MarkdownIt = require('markdown-it');
 const puppeteer = require('puppeteer');
-
 const PROJECT_ROOT = path.resolve(__dirname);
+const MAP_PATH = path.join(PROJECT_ROOT, 'post_map.json');
+let postMap = {};
+
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
 // const HEADLESS = true;  // GitHub Actions 에선 무조건 headless
@@ -13,6 +15,11 @@ const CHROME_PATH = process.env.CHROME_PATH
     || (process.platform === 'darwin'
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome-stable');
+
+// 작성 포스팅 매핑목록 로드
+if (fs.existsSync(MAP_PATH)) {
+    postMap = JSON.parse(fs.readFileSync(MAP_PATH, 'utf-8'));
+}
 
 // 대상 MD 파일 목록
 const files = process.env.FILES
@@ -118,7 +125,7 @@ process.on('uncaughtException', err => {
             // 이미 처리됐거나 자동으로 닫혔으면 무시
         }
     });
-    
+
     // 4) MD 파일 순회
     for (const absolutePath of files) {
         // 제목/카테고리/본문 준비
@@ -129,6 +136,9 @@ process.on('uncaughtException', err => {
         const raw = fs.readFileSync(absolutePath, 'utf-8');
         const lines = raw.split('\n');
         let title = '', found = false, bodyLines = [];
+        let isNew = false;
+        let postId = postMap[relPath];
+
         for (const line of lines) {
             if (!found && line.startsWith('#')) {
                 title = line.slice(2).trim();
@@ -139,16 +149,23 @@ process.on('uncaughtException', err => {
         }
         const html = md.render(bodyLines.join('\n'));
 
+        // 신규 & 수정 게시글 분기처리
+        if (postId) {
+            console.log(`✏️ 이미 발행된 글 ID=${postId}, 수정모드 진입`);
+            await page.goto(`https://${BLOG_NAME}.tistory.com/manage/newpost/${postId}?type=post&returnURL=ENTRY`, { waitUntil: 'networkidle2' });
+        } else {
+            console.log(`🆕 신규 발행 모드 진입`);
+            isNew = true;
+            await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
+        }
         // “글쓰기” 페이지로 바로 이동
-        await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
-        // await page.waitForSelector('a.link_write, .btn_log_info', { visible: true });
-        // await page.click('a.link_write, .btn_log_info');
-        // await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        // await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
-        // if 임시 저장 alert
 
-        // 6) 제목 입력
+        // // 6) 기존 제목 지우고, 제목 입력
         await page.waitForSelector('textarea#post-title-inp', { visible: true });
+        await page.evaluate(() => {
+            const t = document.querySelector('textarea#post-title-inp');
+            t.value = '';
+        });
         await page.click('textarea#post-title-inp');
         await page.type('textarea#post-title-inp', title, { delay: 20 });
         await page.waitForTimeout(200);
@@ -173,12 +190,15 @@ process.on('uncaughtException', err => {
         const frameHandle = await page.$('#editor-tistory_ifr', { delay: 20 });
         const frame = await frameHandle.contentFrame({ delay: 20 });
         await frame.waitForSelector('body', { visible: true });
+        // 기존 내용 클리어
+        await frame.evaluate(() => { document.body.innerHTML = ''; });
+        // 새 HTML 덮어쓰기
         await frame.evaluate(content => {
             document.body.innerHTML = content;
         }, html);
         await page.waitForTimeout(1000);
 
-        // 9) 발행 (완료 → 비공개 저장)
+        // 9) 발행 (완료 → 저장)
         await page.click('#publish-layer-btn', { delay: 20 });
         await page.waitForSelector('#publish-btn', { visible: true });
         await page.waitForTimeout(400);
@@ -187,7 +207,28 @@ process.on('uncaughtException', err => {
         await page.waitForTimeout(400);
 
         console.log(`✅ [${category}] "${title}" 게시 완료`);
+
+        // postId 가져오기
+        const editHref = await page.$eval(
+            'ul.list_post li:first-child a.btn_post[href*="/manage/post/"]',
+            a => a.getAttribute('href')
+        );
+
+        const match = editHref.match(/\/manage\/post\/(\d+)/);
+        if (match) {
+            postId = Number(match[1]);
+            if (isNew) {
+                postMap[relPath] = postId;
+                console.log(`💾 신규 매핑 저장: ${relPath} → ${postId}`);
+            } else {
+                console.log(`✏️ 수정 완료: ${relPath} → ${postId}`);
+            }
+        } else {
+            console.warn('⚠️ postId를 추출하지 못했습니다.', editHref);
+        }
     }
+    fs.writeFileSync(MAP_PATH, JSON.stringify(postMap, null, 2), 'utf-8');
+    console.log('💾 post_map.json 업데이트 완료');
 
     await browser.close();
 })();
