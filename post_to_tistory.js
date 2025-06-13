@@ -110,8 +110,16 @@ process.on('uncaughtException', err => {
     // 글 관리 페이지 진입
     await page.goto(`https://${BLOG_NAME}.tistory.com/manage/posts`, { waitUntil: 'networkidle2' });
 
+    page.on('dialog', async dialog => {
+        console.log('🔔 팝업 감지 — 자동으로 취소 처리');
+        try {
+            await dialog.dismiss();
+        } catch (e) {
+            // 이미 처리됐거나 자동으로 닫혔으면 무시
+        }
+    });
+    
     // 4) MD 파일 순회
-
     for (const absolutePath of files) {
         // 제목/카테고리/본문 준비
         const relPath = path.relative(POSTING_DIR, absolutePath);
@@ -131,12 +139,7 @@ process.on('uncaughtException', err => {
         }
         const html = md.render(bodyLines.join('\n'));
 
-        // 5) 글 관리 페이지
-        page.once('dialog', async dialog => {
-            console.log('🔔 임시 저장 확인 팝업 감지 — 취소 처리');
-            await dialog.dismiss();
-        });
-        // “글쓰기” 버튼 클릭
+        // “글쓰기” 페이지로 바로 이동
         await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
         // await page.waitForSelector('a.link_write, .btn_log_info', { visible: true });
         // await page.click('a.link_write, .btn_log_info');
