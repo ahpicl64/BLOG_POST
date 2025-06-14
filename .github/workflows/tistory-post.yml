@@ -56,5 +56,6 @@ jobs:
             git push
           else
           echo "🟢 post_map.json 변경사항이 없으므로 커밋하지 않습니다."
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
