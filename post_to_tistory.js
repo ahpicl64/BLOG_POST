@@ -3,10 +3,9 @@ const glob = require('glob');
 const path = require('path');
 const MarkdownIt = require('markdown-it');
 const puppeteer = require('puppeteer');
+
 const PROJECT_ROOT = path.resolve(__dirname);
 const MAP_PATH = path.join(PROJECT_ROOT, 'post_map.json');
-let postMap = {};
-
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 const BLOG_NAME = process.env.BLOG_NAME || 'ahpicl';
 // const HEADLESS = true;  // GitHub Actions 에선 무조건 headless
@@ -16,6 +15,7 @@ const CHROME_PATH = process.env.CHROME_PATH
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome-stable');
 
+let postMap = {};
 // 작성 포스팅 매핑목록 로드
 if (fs.existsSync(MAP_PATH)) {
     postMap = JSON.parse(fs.readFileSync(MAP_PATH, 'utf-8'));
@@ -160,9 +160,9 @@ process.on('uncaughtException', err => {
                 const ext = path.extname(src).toLowerCase();
                 const mine =
                     ext === '.png' ? 'image/png' :
-                    ext === '.jpg' ? 'image/jpeg' :
-                    ext === '.jpeg' ? 'image/jpeg' :
-                    ext === '.gif' ? 'image/gif' :
+                        ext === '.jpg' ? 'image/jpeg' :
+                            ext === '.jpeg' ? 'image/jpeg' :
+                                ext === '.gif' ? 'image/gif' :
                                     'application/octet-stream';
                 const data = fs.readFileSync(imgPath).toString('base64');
                 return `<img src="data:${mine};base64,${data}" alt="${alt}">`;
@@ -211,15 +211,25 @@ process.on('uncaughtException', err => {
         const frame = await frameHandle.contentFrame();
         // await frame.waitForSelector('body', { visible: true });
 
-        await frame.waitForFunction(() => {
-            return document.querySelectorAll('.mce-content-body p').length > 0;
-        }, { timeout: 30_000 });
+        await page.waitForFunction(() => !!window.tinymce && !!tinymce.activeEditor, { timeout: 30_000 });
 
-        // 기존 내용 클리어
-        await frame.evaluate(() => { document.body.innerHTML = ''; });
-        // 새 HTML 덮어쓰기
-        await frame.evaluate(content => { document.body.innerHTML = content }, html);
-        await page.waitForTimeout(1000);
+        // API 로 덮어쓰기
+        await page.evaluate(html => {
+            tinymce.activeEditor.setContent(html);
+        }, html);
+
+        // 안정적으로 반영될 시간 잠깐 대기
+        await page.waitForTimeout(500);
+
+        // await frame.waitForFunction(() => {
+        //     return document.querySelectorAll('.mce-content-body p').length > 0;
+        // }, { timeout: 30_000 });
+
+        // // 기존 내용 클리어
+        // await frame.evaluate(() => { document.body.innerHTML = ''; });
+        // // 새 HTML 덮어쓰기
+        // await frame.evaluate(content => { document.body.innerHTML = content }, html);
+        // await page.waitForTimeout(1000);
 
         // 9) 발행 (완료 → 저장)
         await page.click('#publish-layer-btn', { delay: 20 });
