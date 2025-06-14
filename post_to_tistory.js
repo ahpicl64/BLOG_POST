@@ -132,6 +132,7 @@ process.on('uncaughtException', err => {
         const relPath = path.relative(POSTING_DIR, absolutePath);
         const folder = relPath.split(path.sep)[0];
         const category = CATEGORY_MAP[folder] || '';
+        const mdDir = path.dirname(absolutePath);
 
         const raw = fs.readFileSync(absolutePath, 'utf-8');
         const lines = raw.split('\n');
@@ -151,7 +152,7 @@ process.on('uncaughtException', err => {
         html = html.replace(
             /<img src="([^"]+)" alt="([^"]*)" ?\/?>/g,
             (_, src, alt) => {
-                const imgPath = path.join(POSTING_DIR, src);
+                const imgPath = path.join(mdDir, src);
                 if (!fs.existsSync(imgPath)) {
                     console.warn(`⚠️ 이미지가 없습니다: ${imgPath}`);
                     return `<img src="${src}" alt="${alt}">`;
@@ -171,7 +172,7 @@ process.on('uncaughtException', err => {
         // 신규 & 수정 게시글 분기처리
         if (postId) {
             console.log(`✏️ 이미 발행된 글 ID=${postId}, 수정모드 진입`);
-            await page.goto(`https://${BLOG_NAME}.tistory.com/manage/newpost/${postId}?type=post&returnURL=ENTRY`, { waitUntil: 'networkidle2' });
+            await page.goto(`https://${BLOG_NAME}.tistory.com/manage/post/${postId}?returnURL=/manage/posts`, { waitUntil: 'networkidle2' });
         } else {
             console.log(`🆕 신규 발행 모드 진입`);
             isNew = true;
