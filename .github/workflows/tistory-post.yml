@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: 레포지토리 체크아웃
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true
 
       - name: Node.js 설정 및 npm 캐시 활성화
         uses: actions/setup-node@v3
@@ -48,8 +50,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add post_map.json
-          git commit -m "chore: update post_map.json after Tistory posting"
-          git push
+          if [ -n "$(git status --porcelain)" ]; then
+            git add post_map.json
+            git commit -m "chore: update post_map.json after Tistory posting"
+            git push
+          else
+          echo "🟢 post_map.json 변경사항이 없으므로 커밋하지 않습니다."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
