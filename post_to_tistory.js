@@ -147,7 +147,26 @@ process.on('uncaughtException', err => {
                 bodyLines.push(line);
             }
         }
-        const html = md.render(bodyLines.join('\n'));
+        let html = md.render(bodyLines.join('\n'));
+        html = html.replace(
+            /<img src="([^"]+)" alt="([^"]*)" ?\/?>/g,
+            (_, src, alt) => {
+                const imgPath = path.join(POSTING_DIR, src);
+                if (!fs.existsSync(imgPath)) {
+                    console.warn(`⚠️ 이미지가 없습니다: ${imgPath}`);
+                    return `<img src="${src}" alt="${alt}">`;
+                }
+                const ext = path.extname(src).toLowerCase();
+                const mine =
+                    ext === '.png' ? 'image/png' :
+                    ext === '.jpg' ? 'image/jpeg' :
+                    ext === '.jpeg' ? 'image/jpeg' :
+                    ext === '.gif' ? 'image/gif' :
+                                    'application/octet-stream';
+                const data = fs.readFileSync(imgPath).toString('base64');
+                return `<img src="data:${mine};base64,${data}" alt="${alt}">`;
+            }
+        );
 
         // 신규 & 수정 게시글 분기처리
         if (postId) {
@@ -187,15 +206,18 @@ process.on('uncaughtException', err => {
         }
 
         // 8) 본문 입력 (iframe)
-        const frameHandle = await page.$('#editor-tistory_ifr', { delay: 20 });
-        const frame = await frameHandle.contentFrame({ delay: 20 });
-        await frame.waitForSelector('body', { visible: true });
+        const frameHandle = await page.waitForSelector('#editor-tistory_ifr', { visible: true });
+        const frame = await frameHandle.contentFrame();
+        // await frame.waitForSelector('body', { visible: true });
+
+        await frame.waitForFunction(() => {
+            return document.querySelectorAll('.mce-content-body p').length > 0;
+        }, { timeout: 30_000 });
+
         // 기존 내용 클리어
         await frame.evaluate(() => { document.body.innerHTML = ''; });
         // 새 HTML 덮어쓰기
-        await frame.evaluate(content => {
-            document.body.innerHTML = content;
-        }, html);
+        await frame.evaluate(content => { document.body.innerHTML = content }, html);
         await page.waitForTimeout(1000);
 
         // 9) 발행 (완료 → 저장)
