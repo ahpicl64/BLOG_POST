@@ -44,8 +44,8 @@ jobs:
           TISTORY_COOKIES_JSON: ${{ secrets.TISTORY_COOKIES_JSON }}
           TISTORY_ID:      ${{ secrets.TISTORY_ID }}
           TISTORY_PASSWORD: ${{ secrets.TISTORY_PASSWORD }}
-        env:
-          CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY }}
+        # env:
+          # CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY }}
 
         run: node post_to_tistory.js
 
