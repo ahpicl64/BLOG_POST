@@ -2,12 +2,14 @@ const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
 const MarkdownIt = require('markdown-it');
-// const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer');
 // reCaptcha 회피
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const HumanTypingPlugin = require('puppeteer-extra-plugin-human-typing');
 
 puppeteerExtra.use(StealthPlugin());
+puppeteerExtra.use(HumanTypingPlugin());
 
 const PROJECT_ROOT = path.resolve(__dirname);
 const MAP_PATH = path.join(PROJECT_ROOT, 'post_map.json');
@@ -74,6 +76,7 @@ process.on('uncaughtException', err => {
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     const page = await browser.newPage();
+    await page.setViewport({ width: 1920, height: 1080 });
 
     // 2) 환경변수로 주입된 쿠키 JSON 로드
     if (process.env.TISTORY_COOKIES_JSON) {
@@ -102,8 +105,11 @@ process.on('uncaughtException', err => {
 
         // 카카오 로그인 폼
         await page.waitForSelector('input#loginId--1', { visible: true });
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 200);
         await page.type('input#loginId--1', process.env.TISTORY_ID, { delay: 20 });
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 200);
         await page.type('input#password--2', process.env.TISTORY_PASSWORD, { delay: 20 });
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 300);
         await page.click('button.submit');
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         // 카카오 2단계 인증 페이지 검증
@@ -159,7 +165,7 @@ process.on('uncaughtException', err => {
         }
         let html = md.render(bodyLines.join('\n'));
         html = html.replace(
-            /<img src="([^"]+)" alt="([^"]*)" ?\/?>/g,
+            /<img src="([^"]+)" alt="([^"]*)" ?\/>/g,
             (_, src, alt) => {
                 const imgPath = path.join(mdDir, src);
                 if (!fs.existsSync(imgPath)) {
@@ -194,14 +200,20 @@ process.on('uncaughtException', err => {
         await page.evaluate(() => {
             const t = document.querySelector('textarea#post-title-inp');
             t.value = '';
-        });
-        await page.click('textarea#post-title-inp');
-        await page.type('textarea#post-title-inp', title, { delay: 20 });
-        await page.waitForTimeout(200);
+            // type 함수 쓰지않고, 본문처럼 바로 덮어씌우기
+            t.value = title;
 
+            t.dispatchEvent(new Event('input', { bubbles: ture }));
+        }, title);
+        // await page.click('textarea#post-title-inp');
+        // await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
+        // await page.typeHuman('textarea#post-title-inp', title, { delay: 20 });
+        await page.waitForTimeout(200);
+        
         // 7) 카테고리 선택
         if (category) {
-            await page.click('#category-btn', { delay: 30 });
+            await page.click('#category-btn', {});
+            await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
             await page.waitForTimeout(400);
             await page.waitForSelector('#category-list .mce-menu-item', { visible: true });
             await page.evaluate(cat => {
@@ -210,7 +222,7 @@ process.on('uncaughtException', err => {
                         if (li.textContent.trim() === cat) li.click();
                     });
             }, category);
-            await page.waitForTimeout(400);
+            await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 400);
         } else {
             console.log('🟡 카테고리 지정 없음, 기본 선택 유지')
         }
@@ -228,12 +240,12 @@ process.on('uncaughtException', err => {
         }, html);
 
         // 안정적으로 반영될 시간 잠깐 대기
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 5000);
 
         // 9) 발행 (완료 → 저장)
         await page.click('#publish-layer-btn', { delay: 20 });
         await page.waitForSelector('#publish-btn', { visible: true });
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 500);
         await page.click('#publish-btn', { delay: 20 });
 
         // 9-1) reCAPTCHA 가 떠 있으면 풀기
@@ -245,7 +257,7 @@ process.on('uncaughtException', err => {
             if (solved.length) {
                 console.log('✅ reCAPTCHA 풀었어요');
                 await page.waitForSelector('#publish-btn', { visible: true });
-                await page.waitForTimeout(400);
+                await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 400);
                 await page.click('#publish-btn', { delay: 20 });
             } else {
                 console.warn('⚠️ reCAPTCHA 풀이 실패:', error);
@@ -256,7 +268,7 @@ process.on('uncaughtException', err => {
         }
 
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
 
         console.log(`✅ [${category}] "${title}" 게시 완료`);
 
