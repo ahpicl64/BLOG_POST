@@ -2,7 +2,12 @@ const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
 const MarkdownIt = require('markdown-it');
-const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer');
+// reCaptcha 회피
+const puppeteerExtra = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+puppeteerExtra.use(StealthPlugin());
 
 const PROJECT_ROOT = path.resolve(__dirname);
 const MAP_PATH = path.join(PROJECT_ROOT, 'post_map.json');
@@ -14,6 +19,14 @@ const CHROME_PATH = process.env.CHROME_PATH
     || (process.platform === 'darwin'
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome-stable');
+
+const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
+puppeteerExtra.use(
+    RecaptchaPlugin({
+        provider: { id: '2captcha', token: process.env.CAPTCHA_API_KEY },
+        visualFeedback: true
+    })
+);
 
 let postMap = {};
 // 작성 포스팅 매핑목록 로드
@@ -54,9 +67,10 @@ process.on('uncaughtException', err => {
 
 (async () => {
     // 1) 브라우저 띄우기
-    const browser = await puppeteer.launch({
+    const browser = await puppeteerExtra.launch({
         executablePath: CHROME_PATH,
         headless: HEADLESS ? 'new' : false,
+        userDataDir: path.join(PROJECT_ROOT, 'puppeteer_profile'),
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     const page = await browser.newPage();
@@ -107,11 +121,6 @@ process.on('uncaughtException', err => {
             await page.waitForNavigation({ waitUntil: 'networkidle2' });
         }
         console.log('✅ 로그인 완료');
-        // console.log('✅ 로그인 성공, 세션 쿠키 새로 저장');
-
-        // 쿠키 저장
-        // const newCookies = await page.cookies();
-        // fs.writeFileSync(COOKIE_PATH, JSON.stringify(newCookies, null, 2));
     }
 
     // 글 관리 페이지 진입
@@ -221,21 +230,31 @@ process.on('uncaughtException', err => {
         // 안정적으로 반영될 시간 잠깐 대기
         await page.waitForTimeout(500);
 
-        // await frame.waitForFunction(() => {
-        //     return document.querySelectorAll('.mce-content-body p').length > 0;
-        // }, { timeout: 30_000 });
-
-        // // 기존 내용 클리어
-        // await frame.evaluate(() => { document.body.innerHTML = ''; });
-        // // 새 HTML 덮어쓰기
-        // await frame.evaluate(content => { document.body.innerHTML = content }, html);
-        // await page.waitForTimeout(1000);
-
         // 9) 발행 (완료 → 저장)
         await page.click('#publish-layer-btn', { delay: 20 });
         await page.waitForSelector('#publish-btn', { visible: true });
         await page.waitForTimeout(400);
         await page.click('#publish-btn', { delay: 20 });
+
+        // 9-1) reCAPTCHA 가 떠 있으면 풀기
+        try {
+            // iframe 이 생기면 기다렸다가
+            await page.waitForSelector('iframe[src*="recaptcha"]', { timeout: 3000 });
+            // 떠 있으면 풀어주고
+            const { solved, error } = await page.solveRecaptchas();
+            if (solved.length) {
+                console.log('✅ reCAPTCHA 풀었어요');
+                await page.waitForSelector('#publish-btn', { visible: true });
+                await page.waitForTimeout(400);
+                await page.click('#publish-btn', { delay: 20 });
+            } else {
+                console.warn('⚠️ reCAPTCHA 풀이 실패:', error);
+            }
+        } catch (e) {
+            // timeout 으로 떨어지면 “아예 안 떴구나” 라고 보고 넘어갑니다
+            console.log('🟢 reCAPTCHA 감지 안 됐어요, 그냥 넘어갈게요');
+        }
+
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         await page.waitForTimeout(400);
 
