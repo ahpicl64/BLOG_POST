@@ -1,15 +1,25 @@
+require('dotenv').config();
 const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
 const MarkdownIt = require('markdown-it');
-const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer');
 // reCaptcha 회피
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const HumanTypingPlugin = require('puppeteer-extra-plugin-human-typing');
+const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
 
 puppeteerExtra.use(StealthPlugin());
 puppeteerExtra.use(HumanTypingPlugin());
+puppeteerExtra.use(
+    RecaptchaPlugin({
+        provider: { id: '2captcha', token: process.env.CAPTCHA_API_KEY },
+        visualFeedback: true,
+        throwOnError: false,
+        solveScore: 0.3
+    })
+);
 
 const PROJECT_ROOT = path.resolve(__dirname);
 const MAP_PATH = path.join(PROJECT_ROOT, 'post_map.json');
@@ -22,13 +32,6 @@ const CHROME_PATH = process.env.CHROME_PATH
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome-stable');
 
-const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
-puppeteerExtra.use(
-    RecaptchaPlugin({
-        provider: { id: '2captcha', token: process.env.CAPTCHA_API_KEY },
-        visualFeedback: true
-    })
-);
 
 let postMap = {};
 // 작성 포스팅 매핑목록 로드
@@ -73,10 +76,68 @@ process.on('uncaughtException', err => {
         executablePath: CHROME_PATH,
         headless: HEADLESS ? 'new' : false,
         userDataDir: path.join(PROJECT_ROOT, 'puppeteer_profile'),
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-extensions',                 // 확장정보 체크 예방
+            '--disable-infobars',                   // “Chrome is being controlled…” 배너 제거
+            '--mute-audio',                         // 오디오 불필요시
+            `--window-size=1920,1080`               // 화면 해상도 맞추기
+        ]
     });
     const page = await browser.newPage();
+
+    // NewDocument 스크립트로 지문 덮어쓰기
+    await page.evaluateOnNewDocument(() => {
+        // — 필수 은닉 로직
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        window.chrome = { runtime: {} };
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (params) =>
+            params.name === 'notifications'
+                ? Promise.resolve({ state: Notification.permission })
+                : originalQuery(params);
+        Object.defineProperty(navigator, 'languages', { get: () => ['ko-KR', 'ko', 'en-US'] });
+        Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+
+        // — 2번 보강 항목
+        // 2-1) CPU 코어 수 & 메모리 용량 위조
+        Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+        Object.defineProperty(navigator, 'deviceMemory', { get: () => 16 });
+
+        // 2-2) plugins & mimeTypes 리스트 흉내
+        const fakePlugin = { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: '' };
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [fakePlugin],
+        });
+        Object.defineProperty(navigator, 'mimeTypes', {
+            get: () => [{ type: 'application/pdf', suffixes: 'pdf', description: '', __pluginName: 'Chrome PDF Plugin' }],
+        });
+
+        // 2-3) Network Information API 위조
+        if (navigator.connection) {
+            Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
+            Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
+        }
+
+        // 2-4) MediaDevices 목록 가짜값 리턴
+        if (navigator.mediaDevices) {
+            const origEnumerate = navigator.mediaDevices.enumerateDevices;
+            navigator.mediaDevices.enumerateDevices = () =>
+                Promise.resolve([{ kind: 'videoinput', label: 'FaceTime HD Camera', deviceId: 'abc123' }]);
+        }
+    });
+
+
+    // 4) User-Agent, 화면 크기, 타임존 설정
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({ 'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8' });
     await page.setViewport({ width: 1920, height: 1080 });
+    // await page.emulateTimezone('Asia/Seoul');
+    const client = await page.target().createCDPSession();
+    await client.send('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Seoul' });
 
     // 2) 환경변수로 주입된 쿠키 JSON 로드
     if (process.env.TISTORY_COOKIES_JSON) {
@@ -110,6 +171,11 @@ process.on('uncaughtException', err => {
         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 200);
         await page.type('input#password--2', process.env.TISTORY_PASSWORD, { delay: 20 });
         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 300);
+        try {
+            await page.waitForSelector('iframe[src*="recaptcha"]', { timeout: 7000 });
+        } catch {
+
+        }
         await page.click('button.submit');
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         // 카카오 2단계 인증 페이지 검증
@@ -197,19 +263,28 @@ process.on('uncaughtException', err => {
 
         // // 6) 기존 제목 지우고, 제목 입력
         await page.waitForSelector('textarea#post-title-inp', { visible: true });
-        await page.evaluate(() => {
-            const t = document.querySelector('textarea#post-title-inp');
-            t.value = '';
-            // type 함수 쓰지않고, 본문처럼 바로 덮어씌우기
-            t.value = title;
+        await page.click('textarea#post-title-inp');
+        // 전체 선택 후 백스페이스로 지우기 (mac: Meta 대신 Control 혹은 Command)
+        await page.keyboard.down('Control');
+        await page.keyboard.press('A');
+        await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
 
-            t.dispatchEvent(new Event('input', { bubbles: ture }));
-        }, title);
+        await page.type('textarea#post-title-inp', title, { delay: 50 });
+
+        // await page.evaluate(() => {
+        //     const t = document.querySelector('textarea#post-title-inp');
+        //     t.value = '';
+        //     // type 함수 쓰지않고, 본문처럼 바로 덮어씌우기
+        //     t.value = title;
+
+        //     t.dispatchEvent(new Event('input', { bubbles: true }));
+        // }, title);
         // await page.click('textarea#post-title-inp');
         // await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
         // await page.typeHuman('textarea#post-title-inp', title, { delay: 20 });
         await page.waitForTimeout(200);
-        
+
         // 7) 카테고리 선택
         if (category) {
             await page.click('#category-btn', {});
@@ -248,24 +323,24 @@ process.on('uncaughtException', err => {
         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 500);
         await page.click('#publish-btn', { delay: 20 });
 
-        // 9-1) reCAPTCHA 가 떠 있으면 풀기
-        try {
-            // iframe 이 생기면 기다렸다가
-            await page.waitForSelector('iframe[src*="recaptcha"]', { timeout: 3000 });
-            // 떠 있으면 풀어주고
-            const { solved, error } = await page.solveRecaptchas();
-            if (solved.length) {
-                console.log('✅ reCAPTCHA 풀었어요');
-                await page.waitForSelector('#publish-btn', { visible: true });
-                await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 400);
-                await page.click('#publish-btn', { delay: 20 });
-            } else {
-                console.warn('⚠️ reCAPTCHA 풀이 실패:', error);
-            }
-        } catch (e) {
-            // timeout 으로 떨어지면 “아예 안 떴구나” 라고 보고 넘어갑니다
-            console.log('🟢 reCAPTCHA 감지 안 됐어요, 그냥 넘어갈게요');
-        }
+        // // 9-1) reCAPTCHA 가 떠 있으면 풀기
+        // try {
+        //     // iframe 이 생기면 기다렸다가
+        //     await page.waitForSelector('iframe[src*="recaptcha"]', { timeout: 3000 });
+        //     // 떠 있으면 풀어주고
+        //     const { solved, error } = await page.solveRecaptchas();
+        //     if (solved.length) {
+        //         console.log('✅ reCAPTCHA 풀었어요');
+        //         await page.waitForSelector('#publish-btn', { visible: true });
+        //         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 400);
+        //         await page.click('#publish-btn', { delay: 20 });
+        //     } else {
+        //         console.warn('⚠️ reCAPTCHA 풀이 실패:', error);
+        //     }
+        // } catch (e) {
+        //     // timeout 으로 떨어지면 “아예 안 떴구나” 라고 보고 넘어갑니다
+        //     console.log('🟢 reCAPTCHA 감지 안 됐어요, 그냥 넘어갈게요');
+        // }
 
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);

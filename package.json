@@ -7,6 +7,7 @@
     },
     "dependencies": {
         "automation-extra-plugin": "^4.2.1-next.587",
+        "dotenv": "^16.5.0",
         "front-matter": "^4.0.2",
         "glob": "^10.4.5",
         "js-yaml": "^4.1.0",
