@@ -9,8 +9,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# 쿠키
 cookies.json
 cookies.b64
 
-로컬실행커맨드.md
+# 환경변수
 .env
+
+# 올리고 싶지 않은 파일들
+로컬실행커맨드.md
+250617_자기소개(팀매칭)/
+306호_팀원_임재홍.md
+man_post.js

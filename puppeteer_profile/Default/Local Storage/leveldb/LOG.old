@@ -1,3 +1,2 @@
-2025/06/16-22:42:44.920 68937e Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Local Storage/leveldb/MANIFEST-000001
-2025/06/16-22:42:44.923 68937e Recovering log #3
-2025/06/16-22:42:44.923 68937e Reusing old log /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Local Storage/leveldb/000003.log 
+2025/06/18-04:57:39.051 99d314 Creating DB /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Local Storage/leveldb since it was missing.
+2025/06/18-04:57:39.057 99d314 Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Local Storage/leveldb/MANIFEST-000001

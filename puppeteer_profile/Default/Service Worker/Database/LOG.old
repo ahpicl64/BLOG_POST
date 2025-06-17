@@ -1,3 +1,2 @@
-2025/06/16-22:42:44.853 689344 Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Service Worker/Database/MANIFEST-000001
-2025/06/16-22:42:44.866 689344 Recovering log #3
-2025/06/16-22:42:44.867 689344 Reusing old log /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Service Worker/Database/000003.log 
+2025/06/18-04:57:39.708 99d2c5 Creating DB /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Service Worker/Database since it was missing.
+2025/06/18-04:57:39.715 99d2c5 Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/Service Worker/Database/MANIFEST-000001

@@ -1,3 +1,2 @@
-2025/06/16-22:42:45.456 689339 Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/shared_proto_db/MANIFEST-000001
-2025/06/16-22:42:45.457 689339 Recovering log #3
-2025/06/16-22:42:45.457 689339 Reusing old log /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/shared_proto_db/000003.log 
+2025/06/18-04:57:39.540 99d2d5 Creating DB /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/shared_proto_db since it was missing.
+2025/06/18-04:57:39.542 99d2d5 Reusing MANIFEST /Users/ahpicl/Desktop/tistory/blog_post/puppeteer_profile/Default/shared_proto_db/MANIFEST-000001
