@@ -24,6 +24,160 @@ const CHROME_PATH = process.env.CHROME_PATH
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome-stable');
 
+// 인간 같은 행동 패턴을 구현하는 유틸리티 함수들
+// 자연스러운 지연 시간 생성 (정규 분포에 가까운 랜덤 지연)
+function humanDelay(min = 100, max = 500) {
+    // 여러 개의 랜덤값을 더해서 정규분포에 가까운 값 생성 (중심극한정리 활용)
+    const randomSum = Array(5).fill(0)
+        .map(() => Math.random())
+        .reduce((sum, val) => sum + val, 0);
+    
+    // 0~5 범위의 값을 min~max 범위로 변환
+    return Math.floor(min + (randomSum / 5) * (max - min));
+}
+
+// 인간 같은 마우스 움직임 구현
+async function humanMouseMovement(page, targetSelector) {
+    const rect = await page.evaluate((selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return { x, y, width, height };
+    }, targetSelector);
+    
+    if (!rect) return false;
+    
+    // 현재 마우스 위치 가져오기 (기본값은 화면 중앙)
+    const currentPosition = await page.evaluate(() => {
+        return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    });
+    
+    // 목표 지점 (요소 내 랜덤한 위치)
+    const targetX = rect.x + rect.width * (0.3 + Math.random() * 0.4);
+    const targetY = rect.y + rect.height * (0.3 + Math.random() * 0.4);
+    
+    // 베지어 곡선 포인트 생성 (자연스러운 곡선 움직임)
+    const points = [
+        { x: currentPosition.x, y: currentPosition.y },
+        { 
+            x: currentPosition.x + (targetX - currentPosition.x) * (0.2 + Math.random() * 0.2),
+            y: currentPosition.y + (targetY - currentPosition.y) * (0.4 + Math.random() * 0.3)
+        },
+        { 
+            x: currentPosition.x + (targetX - currentPosition.x) * (0.7 + Math.random() * 0.2),
+            y: currentPosition.y + (targetY - currentPosition.y) * (0.7 + Math.random() * 0.2)
+        },
+        { x: targetX, y: targetY }
+    ];
+    
+    // 포인트 사이를 이동하는 단계 수
+    const steps = 10 + Math.floor(Math.random() * 15);
+    
+    // 베지어 곡선을 따라 마우스 이동
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const point = bezierPoint(points, t);
+        await page.mouse.move(point.x, point.y);
+        await page.waitForTimeout(5 + Math.random() * 15);
+    }
+    
+    // 클릭 전 약간의 지연
+    await page.waitForTimeout(50 + Math.random() * 150);
+    return true;
+}
+
+// 베지어 곡선 계산 함수
+function bezierPoint(points, t) {
+    if (points.length === 1) return points[0];
+    
+    const newPoints = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        newPoints.push({
+            x: (1 - t) * points[i].x + t * points[i + 1].x,
+            y: (1 - t) * points[i].y + t * points[i + 1].y
+        });
+    }
+    
+    return bezierPoint(newPoints, t);
+}
+
+// 인간 같은 클릭 구현
+async function humanClick(page, selector) {
+    // 먼저 요소가 존재하는지 확인
+    const elementExists = await page.$(selector) !== null;
+    if (!elementExists) return false;
+    
+    // 요소가 보이고 클릭 가능한지 확인
+    await page.waitForSelector(selector, { visible: true, timeout: 5000 }).catch(() => {});
+    
+    // 자연스러운 마우스 이동
+    const moved = await humanMouseMovement(page, selector);
+    if (!moved) return false;
+    
+    // 클릭 전 약간의 지연
+    await page.waitForTimeout(humanDelay(50, 200));
+    
+    // 클릭 (가끔 더블 클릭 실수 시뮬레이션)
+    if (Math.random() < 0.05) {
+        await page.mouse.click(page.mouse.x, page.mouse.y);
+        await page.waitForTimeout(humanDelay(30, 100));
+        await page.mouse.click(page.mouse.x, page.mouse.y);
+    } else {
+        await page.mouse.click(page.mouse.x, page.mouse.y);
+    }
+    
+    return true;
+}
+
+// 인간 같은 타이핑 구현
+async function humanType(page, selector, text) {
+    await page.waitForSelector(selector, { visible: true });
+    
+    // 타이핑 속도 변화 (WPM 기준)
+    const avgWPM = 30 + Math.floor(Math.random() * 50); // 30-80 WPM
+    const charsPerMinute = avgWPM * 5; // 평균 단어 길이를 5자로 가정
+    const baseDelay = 60000 / charsPerMinute; // 분당 타자수에 따른 기본 지연시간
+    
+    // 가끔 오타를 내고 수정하는 시뮬레이션
+    let i = 0;
+    while (i < text.length) {
+        // 현재 문자
+        const char = text[i];
+        
+        // 오타 시뮬레이션 (5% 확률)
+        if (Math.random() < 0.05 && i < text.length - 1) {
+            // 다음 문자를 잘못 입력
+            const wrongChar = String.fromCharCode(
+                text.charCodeAt(i + 1) + (Math.random() > 0.5 ? 1 : -1)
+            );
+            await page.type(selector, wrongChar, { delay: baseDelay * (0.8 + Math.random() * 0.4) });
+            
+            // 잠시 멈춤
+            await page.waitForTimeout(humanDelay(300, 800));
+            
+            // 백스페이스로 지우기
+            await page.keyboard.press('Backspace');
+            await page.waitForTimeout(humanDelay(200, 400));
+            
+            // 올바른 문자 입력
+            await page.type(selector, char, { delay: baseDelay * (0.8 + Math.random() * 0.4) });
+        } else {
+            // 정상 타이핑
+            await page.type(selector, char, { delay: baseDelay * (0.8 + Math.random() * 0.4) });
+        }
+        
+        // 가끔 잠시 멈춤 (특히 구두점 후에)
+        if ((char === '.' || char === ',' || char === '!' || char === '?') && Math.random() < 0.7) {
+            await page.waitForTimeout(humanDelay(300, 1000));
+        } else if (Math.random() < 0.05) {
+            // 랜덤하게 잠시 멈춤
+            await page.waitForTimeout(humanDelay(100, 500));
+        }
+        
+        i++;
+    }
+}
+
 
 let postMap = {};
 // 작성 포스팅 매핑목록 로드
@@ -82,7 +236,7 @@ process.on('uncaughtException', err => {
     });
     const page = await browser.newPage();
 
-    // NewDocument 스크립트로 지문 덮어쓰기
+    // NewDocument 스크립트로 지문 덮어쓰기 - 고급 기법 적용
     await page.evaluateOnNewDocument(() => {
         // — 필수 은닉 로직
         Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -92,43 +246,174 @@ process.on('uncaughtException', err => {
             params.name === 'notifications'
                 ? Promise.resolve({ state: Notification.permission })
                 : originalQuery(params);
-        Object.defineProperty(navigator, 'languages', { get: () => ['ko-KR', 'ko', 'en-US'] });
-        Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+        
+        // 언어 설정 - 약간의 랜덤성 추가
+        const languages = ['ko-KR', 'ko', 'en-US'];
+        if (Math.random() > 0.7) languages.push('ja');
+        Object.defineProperty(navigator, 'languages', { get: () => languages });
+        
+        // 플랫폼 설정 - 랜덤하게 다양화
+        const platforms = ['MacIntel', 'Win32', 'MacIntel', 'MacIntel', 'MacIntel'];
+        const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+        Object.defineProperty(navigator, 'platform', { get: () => randomPlatform });
 
-        // — 2번 보강 항목
-        // 2-1) CPU 코어 수 & 메모리 용량 위조
-        Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-        Object.defineProperty(navigator, 'deviceMemory', { get: () => 16 });
+        // — 보강 항목
+        // 1) CPU 코어 수 & 메모리 용량 위조 - 자연스러운 랜덤값
+        const cores = [4, 6, 8, 8, 12, 16][Math.floor(Math.random() * 6)];
+        const memory = [8, 8, 16, 16, 32][Math.floor(Math.random() * 5)];
+        Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => cores });
+        Object.defineProperty(navigator, 'deviceMemory', { get: () => memory });
 
-        // 2-2) plugins & mimeTypes 리스트 흉내
-        const fakePlugin = { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: '' };
+        // 2) plugins & mimeTypes 리스트 흉내 - 더 자연스러운 구성
+        const plugins = [
+            { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: '' },
+            { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+            { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
+        ];
+        
+        // 랜덤하게 일부 플러그인만 포함
+        const selectedPlugins = plugins.filter(() => Math.random() > 0.3);
+        
         Object.defineProperty(navigator, 'plugins', {
-            get: () => [fakePlugin],
+            get: () => Object.freeze(selectedPlugins)
         });
+        
+        const mimeTypes = [
+            { type: 'application/pdf', suffixes: 'pdf', description: '', __pluginName: 'Chrome PDF Plugin' },
+            { type: 'application/x-nacl', suffixes: '', description: 'Native Client Executable', __pluginName: 'Native Client' },
+            { type: 'application/x-pnacl', suffixes: '', description: 'Portable Native Client Executable', __pluginName: 'Native Client' }
+        ];
+        
+        // 선택된 플러그인에 맞는 MIME 타입만 포함
+        const selectedMimeTypes = mimeTypes.filter(mime => 
+            selectedPlugins.some(plugin => plugin.name === mime.__pluginName)
+        );
+        
         Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => [{ type: 'application/pdf', suffixes: 'pdf', description: '', __pluginName: 'Chrome PDF Plugin' }],
+            get: () => Object.freeze(selectedMimeTypes)
         });
 
-        // 2-3) Network Information API 위조
+        // 3) Network Information API 위조 - 더 자연스러운 값
         if (navigator.connection) {
-            Object.defineProperty(navigator.connection, 'downlink', { get: () => 10 });
-            Object.defineProperty(navigator.connection, 'rtt', { get: () => 50 });
+            const downlinkValues = [5, 10, 15, 20, 25];
+            const rttValues = [30, 50, 70, 100];
+            Object.defineProperty(navigator.connection, 'downlink', { 
+                get: () => downlinkValues[Math.floor(Math.random() * downlinkValues.length)] 
+            });
+            Object.defineProperty(navigator.connection, 'rtt', { 
+                get: () => rttValues[Math.floor(Math.random() * rttValues.length)] 
+            });
+            
+            // 추가: effectiveType 속성도 위조
+            const types = ['4g', '4g', '4g', '3g'];
+            Object.defineProperty(navigator.connection, 'effectiveType', {
+                get: () => types[Math.floor(Math.random() * types.length)]
+            });
         }
 
-        // 2-4) MediaDevices 목록 가짜값 리턴
+        // 4) MediaDevices 목록 가짜값 리턴 - 더 자연스러운 구성
         if (navigator.mediaDevices) {
             const origEnumerate = navigator.mediaDevices.enumerateDevices;
-            navigator.mediaDevices.enumerateDevices = () =>
-                Promise.resolve([{ kind: 'videoinput', label: 'FaceTime HD Camera', deviceId: 'abc123' }]);
+            navigator.mediaDevices.enumerateDevices = () => {
+                const devices = [
+                    { kind: 'videoinput', label: 'FaceTime HD Camera', deviceId: 'default' + Math.random().toString(36).substring(2, 7) },
+                    { kind: 'audioinput', label: 'Built-in Microphone', deviceId: 'default' + Math.random().toString(36).substring(2, 7) }
+                ];
+                
+                // 랜덤하게 추가 장치 포함
+                if (Math.random() > 0.5) {
+                    devices.push({ kind: 'audiooutput', label: 'Built-in Speaker', deviceId: 'default' + Math.random().toString(36).substring(2, 7) });
+                }
+                
+                return Promise.resolve(devices);
+            };
+        }
+        
+        // 5) Canvas 지문 방지 - 미세한 노이즈 추가
+        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL = function(type) {
+            if (this.width === 16 && this.height === 16 || 
+                this.width === 2 && this.height === 2 ||
+                this.width < 100 && this.height < 100) {
+                // 지문 수집에 사용되는 작은 캔버스는 약간 변형
+                const canvas = document.createElement('canvas');
+                canvas.width = this.width;
+                canvas.height = this.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(this, 0, 0);
+                
+                // 미세한 픽셀 변경 (눈에 띄지 않는 수준)
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    // 랜덤하게 1-2 픽셀값만 미세하게 조정
+                    if (Math.random() < 0.1) {
+                        data[i] = Math.max(0, Math.min(255, data[i] + (Math.random() * 2 - 1)));
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL(type);
+            }
+            return originalToDataURL.apply(this, arguments);
+        };
+        
+        // 6) WebGL 지문 방지
+        const getParameterProxyHandler = {
+            apply: function(target, thisArg, args) {
+                const param = args[0];
+                const result = target.apply(thisArg, args);
+                
+                // UNMASKED_VENDOR_WEBGL 또는 UNMASKED_RENDERER_WEBGL 파라미터 요청 시
+                if (param === 37445 || param === 37446) {
+                    // 원래 값을 반환하되, 가끔 약간 변형
+                    if (Math.random() > 0.9 && typeof result === 'string') {
+                        return result.replace(/\s+/g, ' ').trim();
+                    }
+                }
+                return result;
+            }
+        };
+        
+        // WebGL 컨텍스트의 getParameter 함수를 프록시로 감싸기
+        if (window.WebGLRenderingContext) {
+            const getParameter = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = new Proxy(getParameter, getParameterProxyHandler);
         }
     });
 
 
-    // 4) User-Agent, 화면 크기, 타임존 설정
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36');
-    await page.setExtraHTTPHeaders({ 'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8' });
-    await page.setViewport({ width: 1920, height: 1080 });
-    // await page.emulateTimezone('Asia/Seoul');
+    // 4) User-Agent, 화면 크기, 타임존 설정 - 더 자연스러운 설정
+    // 다양한 User-Agent 목록에서 랜덤 선택
+    const userAgents = [
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
+    ];
+    const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+    await page.setUserAgent(randomUserAgent);
+    
+    // 언어 설정 - 약간의 변화 추가
+    const languageOptions = [
+        { 'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7' },
+        { 'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8' },
+        { 'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.7,en;q=0.6' }
+    ];
+    const randomLanguage = languageOptions[Math.floor(Math.random() * languageOptions.length)];
+    await page.setExtraHTTPHeaders(randomLanguage);
+    
+    // 화면 크기 - 약간의 변화 추가
+    const viewportSizes = [
+        { width: 1920, height: 1080 },
+        { width: 1920, height: 1080 },
+        { width: 1680, height: 1050 },
+        { width: 1440, height: 900 }
+    ];
+    const randomViewport = viewportSizes[Math.floor(Math.random() * viewportSizes.length)];
+    await page.setViewport(randomViewport);
+    
+    // 타임존 설정
     const client = await page.target().createCDPSession();
     await client.send('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Seoul' });
 
@@ -322,43 +607,54 @@ process.on('uncaughtException', err => {
         }
         // “글쓰기” 페이지로 바로 이동
 
-        // // 6) 기존 제목 지우고, 제목 입력
+        // 6) 기존 제목 지우고, 제목 입력
         await page.waitForSelector('textarea#post-title-inp', { visible: true });
-        await page.click('textarea#post-title-inp');
-        // 전체 선택 후 백스페이스로 지우기 (mac: Meta 대신 Control 혹은 Command)
+        
+        // 인간 같은 클릭으로 제목 필드 선택
+        await humanClick(page, 'textarea#post-title-inp');
+        
+        // 전체 선택 후 백스페이스로 지우기 (자연스러운 지연 추가)
+        await page.waitForTimeout(humanDelay(100, 300));
         await page.keyboard.down('Control');
+        await page.waitForTimeout(humanDelay(50, 150));
         await page.keyboard.press('A');
+        await page.waitForTimeout(humanDelay(50, 150));
         await page.keyboard.up('Control');
+        await page.waitForTimeout(humanDelay(100, 300));
         await page.keyboard.press('Backspace');
+        await page.waitForTimeout(humanDelay(200, 500));
 
-        await page.type('textarea#post-title-inp', title, { delay: 50 });
-
-        // await page.evaluate(() => {
-        //     const t = document.querySelector('textarea#post-title-inp');
-        //     t.value = '';
-        //     // type 함수 쓰지않고, 본문처럼 바로 덮어씌우기
-        //     t.value = title;
-
-        //     t.dispatchEvent(new Event('input', { bubbles: true }));
-        // }, title);
-        // await page.click('textarea#post-title-inp');
-        // await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
-        // await page.typeHuman('textarea#post-title-inp', title, { delay: 20 });
-        await page.waitForTimeout(200);
+        // 인간 같은 타이핑으로 제목 입력
+        await humanType(page, 'textarea#post-title-inp', title);
+        await page.waitForTimeout(humanDelay(300, 800));
 
         // 7) 카테고리 선택
         if (category) {
-            await page.click('#category-btn', {});
-            await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 100);
-            await page.waitForTimeout(400);
+            // 인간 같은 클릭으로 카테고리 버튼 선택
+            await humanClick(page, '#category-btn');
+            await page.waitForTimeout(humanDelay(300, 800));
+            
             await page.waitForSelector('#category-list .mce-menu-item', { visible: true });
+            
+            // 카테고리 목록에서 해당 카테고리 찾아 선택
             await page.evaluate(cat => {
-                document.querySelectorAll('#category-list .mce-menu-item', { delay: 20 })
-                    .forEach(li => {
-                        if (li.textContent.trim() === cat) li.click();
+                const items = Array.from(document.querySelectorAll('#category-list .mce-menu-item'));
+                const targetItem = items.find(li => li.textContent.trim() === cat);
+                if (targetItem) {
+                    // 마우스 오버 효과 시뮬레이션
+                    const mouseoverEvent = new MouseEvent('mouseover', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
                     });
+                    targetItem.dispatchEvent(mouseoverEvent);
+                    
+                    // 약간의 지연 후 클릭
+                    setTimeout(() => targetItem.click(), 100 + Math.random() * 200);
+                }
             }, category);
-            await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 400);
+            
+            await page.waitForTimeout(humanDelay(400, 1000));
         } else {
             console.log('🟡 카테고리 지정 없음, 기본 선택 유지')
         }
@@ -379,10 +675,37 @@ process.on('uncaughtException', err => {
         await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 5000);
 
         // 9) 발행 (완료 → 저장)
-        await page.click('#publish-layer-btn', { delay: 20 });
+        // 인간 같은 클릭으로 발행 버튼 선택
+        await humanClick(page, '#publish-layer-btn');
         await page.waitForSelector('#publish-btn', { visible: true });
-        await page.waitForTimeout(Math.random() * 300 + Math.random() * 2000 + Math.random() * 1000 + 500);
-        await page.click('#publish-btn', { delay: 20 });
+        await page.waitForTimeout(humanDelay(500, 1200));
+        
+        // 발행 버튼 클릭 전 약간의 망설임 시뮬레이션
+        if (Math.random() < 0.3) {
+            // 마우스를 버튼 주변에서 약간 움직임
+            const buttonRect = await page.evaluate(() => {
+                const button = document.querySelector('#publish-btn');
+                if (!button) return null;
+                const rect = button.getBoundingClientRect();
+                return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+            });
+            
+            if (buttonRect) {
+                // 버튼 주변에서 마우스 약간 움직이기
+                for (let i = 0; i < 3; i++) {
+                    const offsetX = (Math.random() - 0.5) * 20;
+                    const offsetY = (Math.random() - 0.5) * 20;
+                    await page.mouse.move(
+                        buttonRect.x + buttonRect.width/2 + offsetX,
+                        buttonRect.y + buttonRect.height/2 + offsetY
+                    );
+                    await page.waitForTimeout(humanDelay(100, 300));
+                }
+            }
+        }
+        
+        // 최종 발행 버튼 클릭
+        await humanClick(page, '#publish-btn');
 
         // 9-1) 통합 CAPTCHA 수동 처리 로직
         // 캡챠 레이어, reCAPTCHA, dkcaptcha iframe 중 무엇이든 하나라도 나타나면 감지
