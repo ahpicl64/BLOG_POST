@@ -52,7 +52,7 @@ blog_post/
    npm install
    ```
 
-3. `.env` 파일 생성 및 설정
+3. `.env` 파일 생성 및 설정(로컬 전용)
    ```
    BLOG_NAME=your-blog-name
    TISTORY_ID=your-tistory-id

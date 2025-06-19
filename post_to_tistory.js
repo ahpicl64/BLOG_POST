@@ -77,8 +77,15 @@ async function humanMouseMovement(page, targetSelector) {
     for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         const point = bezierPoint(points, t);
-        await page.mouse.move(point.x, point.y);
-        await page.waitForTimeout(5 + Math.random() * 15);
+        // 좌표가 유효한 숫자인지 확인
+        if (isFinite(point.x) && isFinite(point.y)) {
+            try {
+                await page.mouse.move(Math.floor(point.x), Math.floor(point.y));
+                await page.waitForTimeout(5 + Math.random() * 15);
+            } catch (error) {
+                console.log(`마우스 이동 오류 무시: x=${point.x}, y=${point.y}`);
+            }
+        }
     }
     
     // 클릭 전 약간의 지연
@@ -101,7 +108,7 @@ function bezierPoint(points, t) {
     return bezierPoint(newPoints, t);
 }
 
-// 인간 같은 클릭 구현
+// 인간 같은 클릭 구현 (간소화된 버전)
 async function humanClick(page, selector) {
     // 먼저 요소가 존재하는지 확인
     const elementExists = await page.$(selector) !== null;
@@ -110,23 +117,14 @@ async function humanClick(page, selector) {
     // 요소가 보이고 클릭 가능한지 확인
     await page.waitForSelector(selector, { visible: true, timeout: 5000 }).catch(() => {});
     
-    // 자연스러운 마우스 이동
-    const moved = await humanMouseMovement(page, selector);
-    if (!moved) return false;
-    
-    // 클릭 전 약간의 지연
-    await page.waitForTimeout(humanDelay(50, 200));
-    
-    // 클릭 (가끔 더블 클릭 실수 시뮬레이션)
-    if (Math.random() < 0.05) {
-        await page.mouse.click(page.mouse.x, page.mouse.y);
-        await page.waitForTimeout(humanDelay(30, 100));
-        await page.mouse.click(page.mouse.x, page.mouse.y);
-    } else {
-        await page.mouse.click(page.mouse.x, page.mouse.y);
+    // 일반 클릭으로 대체 (문제 해결 전까지)
+    try {
+        await page.click(selector);
+        return true;
+    } catch (error) {
+        console.error(`클릭 오류: ${error.message}`);
+        return false;
     }
-    
-    return true;
 }
 
 // 인간 같은 타이핑 구현
