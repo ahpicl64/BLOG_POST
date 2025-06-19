@@ -17,15 +17,6 @@
 blog_post/
 ├── .github/workflows/       # GitHub Actions 워크플로우 설정
 ├── posting/                 # 블로그 포스트 마크다운 파일 저장 폴더
-│   ├── Algorithm/           # 알고리즘 관련 포스트
-│   ├── CSAPP/              # CS:APP 관련 포스트
-│   ├── DataStruct/         # 자료구조 관련 포스트
-│   ├── Jungle/             # Jungle 관련 포스트
-│   ├── OS/                 # 운영체제 관련 포스트
-│   ├── React/              # React 관련 포스트
-│   ├── Spring/             # Spring 관련 포스트
-│   ├── WIL/                # What I Learned 포스트
-│   └── etc/                # 기타 포스트
 ├── post_map.json           # 포스트 ID 매핑 파일
 ├── post_to_tistory.js      # 메인 스크립트
 └── .env                    # 환경 변수 설정 파일 (로컬 실행용)
@@ -42,17 +33,20 @@ blog_post/
 ### 로컬 환경 설정
 
 1. 저장소 클론
+
    ```bash
    git clone https://github.com/your-username/blog_post.git
    cd blog_post
    ```
 
 2. 의존성 설치
+
    ```bash
    npm install
    ```
 
 3. `.env` 파일 생성 및 설정(로컬 전용)
+
    ```
    BLOG_NAME=your-blog-name
    TISTORY_ID=your-tistory-id
@@ -61,6 +55,7 @@ blog_post/
    ```
 
 4. 실행
+
    ```bash
    npm start
    ```
@@ -82,6 +77,8 @@ GitHub Actions를 통해 자동화하려면 다음 시크릿을 저장소 설정
 ## 카테고리 매핑
 
 마크다운 파일이 위치한 폴더에 따라 자동으로 티스토리 카테고리가 설정됩니다:
+
+### ex
 
 - `WIL` → WIL
 - `DataStruct` → 자료 구조
