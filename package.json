@@ -3,7 +3,9 @@
     "version": "1.0.0",
     "description": "GitHub Actions + Puppeteer로 Tistory 자동 포스팅",
     "scripts": {
-        "start": "node post_to_tistory.js"
+        "start": "node post_to_tistory.js",
+        "copy": "node clipboard_helper.js",
+        "manual": "node clipboard_helper.js"
     },
     "dependencies": {
         "automation-extra-plugin": "^4.2.1-next.587",
