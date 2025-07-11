@@ -28,8 +28,8 @@ const CATEGORY_MAP = {
 
 // 이미지를 GitHub raw URL로 변환
 function convertToGitHubImageUrl(imagePath, filePath) {
-    const repoOwner = 'ahpicl'; // GitHub 사용자명
-    const repoName = 'blog_post'; // 저장소명
+    const repoOwner = 'ahpicl64'; // GitHub 사용자명
+    const repoName = 'BLOG_POST'; // 저장소명
     
     // URL 디코딩된 경로 사용
     const decodedImagePath = decodeURIComponent(imagePath);
