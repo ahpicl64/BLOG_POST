@@ -1,4 +1,4 @@
-# css 오류 → HTML 오류
+# 프론트엔드 인프라 트러블슈팅(Tailwind CSS import 문법 오류, CSS 파일 해시 불일치, CloudFront DefaultRootObject 설정)
 
 ## 현상
 
