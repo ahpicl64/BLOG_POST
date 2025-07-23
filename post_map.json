@@ -28,5 +28,6 @@
   "Jungle/노션파일_마이그레이션/presigned_URL_업로드_중_403_에러_해결.md": 116,
   "Jungle/노션파일_마이그레이션/FrontEnd_마이그레이션_for_CDN_to_SSR/FrontEnd_마이그레이션_for_CDN_to_SSR.md": 117,
   "Jungle/노션파일_마이그레이션/트러블슈팅_spring_서버_properties_꼬임_작성중/Spring_서버_AWS_인프라_트러블슈팅_완료.md": 118,
-  "Jungle/노션파일_마이그레이션/css_오류_to_HTML_오류/css_오류_to_HTML_오류.md": 119
+  "Jungle/노션파일_마이그레이션/프론트엔드_인프라_트러블슈팅(Tailwind_CSS_import_문법_오류,_CSS_파일_해시_불일치,_CloudFront_DefaultRootObject_설정)/프론트엔드_인프라_트러블슈팅(Tailwind_CSS_import_문법_오류,_CSS_파일_해시_불일치,_CloudFront_DefaultRootObject_설정).md": 119,
+  "Jungle/노션파일_마이그레이션/이미지_로드_실패_next_js_image_optimization/프론트엔드_트러블슈팅(404_Not_Found_X-Powered-By_Next.js_이미지_최적화_ALB_라우팅).md": 120
 }
