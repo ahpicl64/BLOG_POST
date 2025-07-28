@@ -168,6 +168,38 @@ async function processMarkdownFile(filePath) {
     // HTML 변환
     const htmlContent = md.render(processedContent);
     
+    // HTML 변환 후 마크다운 이미지 태그가 남아있는지 검사
+    const remainingImageTags = htmlContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
+    if (remainingImageTags) {
+        console.warn('\n⚠️  경고: HTML 변환 후에도 마크다운 이미지 태그가 남아있습니다:');
+        remainingImageTags.forEach(tag => {
+            console.warn(`   ${tag}`);
+        });
+        
+        // 강제로 HTML img 태그로 변환
+        let fixedHtmlContent = htmlContent;
+        remainingImageTags.forEach(tag => {
+            const match = tag.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+            if (match) {
+                const alt = match[1];
+                const src = match[2];
+                const imgTag = `<img src="${src}" alt="${alt}">`;
+                fixedHtmlContent = fixedHtmlContent.replace(tag, imgTag);
+                console.log(`🔧 수정: ${tag} → ${imgTag}`);
+            }
+        });
+        
+        console.log('✅ 모든 이미지 태그를 HTML로 강제 변환했습니다.');
+        
+        // 클립보드에 수정된 HTML 복사
+        const success = await copyToClipboard(fixedHtmlContent);
+        
+        if (success) {
+            console.log('✅ 수정된 HTML 내용이 클립보드에 복사되었습니다!');
+        }
+        return;
+    }
+    
     console.log('\n='.repeat(60));
     console.log(`📝 파일: ${path.relative(PROJECT_ROOT, filePath)}`);
     console.log(`📂 카테고리: ${category}`);
