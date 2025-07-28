@@ -110,7 +110,7 @@ const USER_BEHAVIORS = {
 
 ## 첫 번째 테스트 결과 (t3.medium)
 
-![image.png](./image.png)
+![image.png](image.png)
 
 ### 성과
 ```
@@ -124,13 +124,13 @@ API 성공률: 100%
 
 목표는 달성했지만, 몇 가지 문제점이 보였어요.
 
-![image1.png](./image1.png)
+![image1.png](image1.png)
 
 84,933회 완료에 동작시간인 20m12s(1,212초)를 나눠주면 TPS가 도출됩니다: `70.1 TPS`
 
 ### CloudWatch로 본 문제점들
 
-![image2.png](./image2.png)
+![image2.png](image2.png)
 
 **ALB 요청 수 분석**
 - **15:10-15:15**: 39,745 요청 (132 RPS)
@@ -156,7 +156,7 @@ API 성공률: 100%
    - **200+ RPS**에서 시스템 성능 저하 시작
    - **269 RPS**가 현재 시스템의 실질적 한계
 
-![image3.png](./image3.png)
+![image3.png](image3.png)
 
 **문제 원인:**
 1. t3.medium (2 vCPU) 인스턴스가 고부하에서 CPU 100% 도달
@@ -166,7 +166,7 @@ API 성공률: 100%
 
 ### 오토스케일링이 왜 늦었을까?
 
-![image4.png](./image4.png)
+![image4.png](image4.png)
 
 **스케일링 지연 시간**
 - CPU 임계값 감지: 1-2분
@@ -199,11 +199,11 @@ API 성공률: 100%
 - c5와 비용 차이가 크지 않았음
 - 현재 워크로드에 적합한 스펙
 
-![image12.png](./image12.png)
+![image12.png](image12.png)
 
 ### 2. Launch Template 업데이트
 
-![image13.png](./image13.png)
+![image13.png](image13.png)
 
 launch template 새로운 버전 생성해주기
 
@@ -211,11 +211,11 @@ launch template 새로운 버전 생성해주기
 
 ### 3. 오토스케일링 정책 개선
 
-![image14.png](./image14.png)
+![image14.png](image14.png)
 
-![image15.png](./image15.png)
+![image15.png](image15.png)
 
-![image16.png](./image16.png)
+![image16.png](image16.png)
 
 ```
 CPU 임계값: 70% → 60% (더 빨리 반응)
@@ -256,11 +256,11 @@ API 성공률: 100%
 
 ### CloudWatch ALB 메트릭
 
-![image5.png](./image5.png)
+![image5.png](image5.png)
 
 **RequestCount**: 피크 시간 분당 29,114 요청 (485 RPS)
 
-![image6.png](./image6.png)
+![image6.png](image6.png)
 
 **TargetResponseTime**:
 - 평균: 0.8-1.5초
@@ -272,7 +272,7 @@ API 성공률: 100%
 
 ### RDS 데이터베이스 성능
 
-![image7.png](./image7.png)
+![image7.png](image7.png)
 
 **CPU 사용률**:
 - 워밍업: 10-15%
@@ -280,7 +280,7 @@ API 성공률: 100%
 - 피크부하: 40-50%
 - 스트레스: 60-70%
 
-![image8.png](./image8.png)
+![image8.png](image8.png)
 
 **DatabaseConnections**:
 - 평균: 80-120 연결
@@ -290,7 +290,7 @@ API 성공률: 100%
 
 ### EC2 인스턴스 성능 (c4.xlarge)
 
-![image10.png](./image10.png)
+![image10.png](image10.png)
 
 **CPU 사용률**
 - 워밍업 (50 TPS): 15-20%
@@ -312,7 +312,7 @@ API 성공률: 100%
 
 ### 오토스케일링 동작
 
-![image9.png](./image9.png)
+![image9.png](image9.png)
 
 이번에는 오토스케일링이 제대로 작동했어요:
 
@@ -327,7 +327,7 @@ API 성공률: 100%
 
 ### 응답시간 개선 패턴
 
-![image11.png](./image11.png)
+![image11.png](image11.png)
 
 - 100 TPS: ~800ms
 - 200 TPS: ~1500ms

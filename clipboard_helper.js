@@ -11,7 +11,12 @@ const execAsync = promisify(exec);
 const PROJECT_ROOT = path.resolve(__dirname);
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 
-const md = new MarkdownIt();
+const md = new MarkdownIt({
+  breaks: true,
+  html: true,
+  maxNesting: 100,
+  typographer: false
+});
 const CATEGORY_MAP = {
     'WIL': 'WIL',
     'DataStruct': '자료 구조',
