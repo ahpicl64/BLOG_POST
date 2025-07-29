@@ -12,10 +12,9 @@ const PROJECT_ROOT = path.resolve(__dirname);
 const POSTING_DIR = path.join(PROJECT_ROOT, 'posting');
 
 const md = new MarkdownIt({
-  breaks: true,
-  html: true,
-  maxNesting: 100,
-  typographer: false
+  html: true,        // HTML 태그 허용
+  breaks: true,      // 줄바꿈을 <br>로 변환
+  linkify: false     // 자동 링크화 비활성화
 });
 const CATEGORY_MAP = {
     'WIL': 'WIL',
@@ -28,6 +27,8 @@ const CATEGORY_MAP = {
     'OS': '운영체제',
     '학습': '학습',
     '이야기': '이야기',
+    'AWS': 'AWS',
+    'SQL': 'SQL',
     'etc': '기타등등'
 };
 
@@ -58,26 +59,17 @@ function processImagesInMarkdown(content, filePath) {
             return match;
         }
         
-        // URL 디코딩 처리 (%20 → 공백 등)
-        const decodedSrc = decodeURIComponent(src);
+        // 상대 경로 처리 (./image.png, image.png 등)
+        const cleanSrc = src.startsWith('./') ? src.substring(2) : src;
+        const imgPath = path.resolve(path.dirname(filePath), cleanSrc);
         
-        // 로컬 이미지 경로를 GitHub raw URL로 변환
-        const imgPath = path.resolve(path.dirname(filePath), decodedSrc);
         if (fs.existsSync(imgPath)) {
-            const githubUrl = convertToGitHubImageUrl(decodedSrc, filePath);
-            console.log(`🖼️  이미지 변환: ${decodedSrc} → ${githubUrl}`);
+            const githubUrl = convertToGitHubImageUrl(cleanSrc, filePath);
+            console.log(`🖼️  이미지 변환: ${cleanSrc} → ${githubUrl}`);
             return `![${alt}](${githubUrl})`;
         }
         
-        // 원본 경로로도 시도
-        const originalImgPath = path.resolve(path.dirname(filePath), src);
-        if (fs.existsSync(originalImgPath)) {
-            const githubUrl = convertToGitHubImageUrl(src, filePath);
-            console.log(`🖼️  이미지 변환: ${src} → ${githubUrl}`);
-            return `![${alt}](${githubUrl})`;
-        }
-        
-        console.warn(`⚠️  이미지 파일을 찾을 수 없습니다: ${src} (디코딩: ${decodedSrc})`);
+        console.warn(`⚠️  이미지 파일을 찾을 수 없습니다: ${src}`);
         return match;
     });
 }
@@ -165,8 +157,22 @@ async function processMarkdownFile(filePath) {
     // 이미지 처리
     const processedContent = processImagesInMarkdown(content, filePath);
     
-    // HTML 변환
-    const htmlContent = md.render(processedContent);
+    // HTML 변환 (에러 처리 추가)
+    let htmlContent;
+    try {
+        console.log('🔄 마크다운 → HTML 변환 시작...');
+        console.log('📝 처리된 마크다운 길이:', processedContent.length);
+        
+        htmlContent = md.render(processedContent);
+        
+        console.log('✅ HTML 변환 완료, HTML 길이:', htmlContent.length);
+        console.log('📄 HTML 미리보기 (첫 200자):', htmlContent.substring(0, 200));
+        
+    } catch (error) {
+        console.error('❌ 마크다운 → HTML 변환 중 오류 발생:', error.message);
+        console.log('📄 원본 마크다운을 그대로 사용합니다.');
+        htmlContent = processedContent;
+    }
     
     // HTML 변환 후 마크다운 이미지 태그가 남아있는지 검사
     const remainingImageTags = htmlContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
