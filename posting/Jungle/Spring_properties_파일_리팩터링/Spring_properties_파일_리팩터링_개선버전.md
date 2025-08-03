@@ -1,4 +1,4 @@
-# Spring Properties 파일 리팩터링: 꼬인 설정을 정리하다
+# Spring Properties 파일 리팩터링
 
 ## 자꾸 꼬이는 설정 문제
 
