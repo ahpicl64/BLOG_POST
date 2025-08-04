@@ -249,14 +249,14 @@ AWS 콘솔 → Amplify → "Create new app"
 
 1. "Deploy without Git provider" 또는 "GitHub" 선택
     
-    ![image.png](image%201.png)
+    ![image.png](image1.png)
     
 2. Repository: [https://github.com/TryItOn-TIO/TryItOn-frontend](https://github.com/TryItOn-TIO/TryItOn-frontend)
 3. Branch: develop 선택(나중엔 main으로 변경)
 
 ### **3단계: 앱 설정**
 
-![image.png](image%202.png)
+![image.png](image2.png)
 
 이 부분은 `YML 파일 편집` 을 누르면 뜨는데, 자동으로 스크립팅 되어있다.
 
@@ -286,7 +286,7 @@ version: 1
 
 "새 서비스 역할 생성 및 사용" 선택 (추천)
 
-![image.png](image%203.png)
+![image.png](image3.png)
 
 이유:
 • SSR 로그를 CloudWatch에 자동 전송
@@ -317,7 +317,7 @@ version: 1
 
 **🖥️ 인스턴스 유형 구축**
 
-![image.png](image%204.png)
+![image.png](image4.png)
 
 표준 (4 vCPU, 7GB RAM)
 
@@ -327,13 +327,13 @@ version: 1
 
 **📦 빌드 이미지**
 
-![image.png](image%205.png)
+![image.png](image5.png)
 
 기본 빌드 컨테이너 사용 (Amazon Linux 2023)
 
 **🔧 환경 변수**
 
-![image.png](image%206.png)
+![image.png](image6.png)
 
 ```bash
 NEXT_PUBLIC_API_URL = [http://TIO-ALB-173623777.ap-northeast-2.elb.amazonaws.com](http://tio-alb-173623777.ap-northeast-2.elb.amazonaws.com/)
@@ -396,7 +396,7 @@ console.log('Debug info:', data)
 
 **🍪 쿠키를 캐시 키에 보관**
 
-![image.png](image%207.png)
+![image.png](image7.png)
 
 활성화되지 않음 (기본값 유지)
 
@@ -405,7 +405,7 @@ console.log('Debug info:', data)
 • 필요시 나중에 활성화 가능
 **📦 라이브 패키지 업데이트**
 
-![image.png](image%208.png)
+![image.png](image8.png)
 
 Node.js version: 18
 npm version: latest
@@ -413,15 +413,15 @@ npm version: latest
 - Node.js 18.x 최신 버전 설치
 - npm 9.x 자동으로 함께 설치
 
-![image.png](image%209.png)
+![image.png](image9.png)
 
 로딩 이후에 콘솔로 가게된다.
 
-![image.png](image%2010.png)
+![image.png](image10.png)
 
 보면 브랜치를 통해 배포중인것을 아래에서 볼 수 있다.
 
-![image.png](image%2011.png)
+![image.png](image11.png)
 
 ### **3. 최종 권장 설정**
 
@@ -530,7 +530,7 @@ AWS 콘솔 → EC2 → Instances → Launch Instance
 • Subnet: subnet-039bb1ba72f793a5b (Private 서브넷)
 • Auto-assign public IP: Disable
     
-    ![image.png](image%2012.png)
+    ![image.png](image12.png)
     
 6. Security groups: 새 보안 그룹 생성
 • Name: TIO-Frontend-EC2-SG
@@ -685,17 +685,17 @@ EC2 → Load Balancing → Target Groups → Create target group
 
 1. Target type: Instances
     
-    ![image.png](image%2013.png)
+    ![image.png](image13.png)
     
 2. Target group name: TargetGroup-Frontend-SSR
 3. Protocol: HTTP
 4. Port: 3000
     
-    ![image.png](image%2014.png)
+    ![image.png](image14.png)
     
 5. VPC
     
-    ![image.png](image%2015.png)
+    ![image.png](image15.png)
     
 6. Protocol version: HTTP1
     
@@ -713,11 +713,11 @@ EC2 → Load Balancing → Target Groups → Create target group
 7. Next → Register targets
 8. Select instances: 새로 생성한 TIO-Frontend-SSR 인스턴스 선택
     
-    ![image.png](image%2016.png)
+    ![image.png](image16.png)
     
 9. Port: 3000
     
-    ![image.png](image%2017.png)
+    ![image.png](image17.png)
     
 10. Include as pending below → Create target group
 
@@ -732,7 +732,7 @@ HTTP:80 리스너 클릭 → Rules → Add rule
 • Condition type: Path
 • Path: /*
     
-    ![image.png](image%2018.png)
+    ![image.png](image18.png)
     
 3. Add action:
 • Action type: Forward to target groups
@@ -740,16 +740,16 @@ HTTP:80 리스너 클릭 → Rules → Add rule
 • Weight: 100
 (모든 트래픽 100%를 해당 그룹으로 전달, 이후 A/B 테스트나 배포 전략 변경 시 다르게 조정)
     
-    ![image.png](image%2019.png)
+    ![image.png](image19.png)
     
 4. Priority: 50
 (기존 API 규칙들과 충돌하지 않으면서도 적절한 순서로 Frontend 요청을 처리하기 위한 안전한 중간값)
     
-    ![image.png](image%2020.png)
+    ![image.png](image20.png)
     
 5. Save
     
-    ![image.png](image%2021.png)
+    ![image.png](image21.png)
     
 
 ## **Phase 3: 프로젝트 설정**
@@ -1564,7 +1564,7 @@ TARGET_GROUP_ARN=arn:aws:elasticloadbalancing:ap-northeast-2:941377136075:target
 
 ### Systems Manager Parameter Store 환경변수 등록
 
-![image.png](image%2022.png)
+![image.png](image22.png)
 
 APU URL 등록
 
@@ -1573,7 +1573,7 @@ APU URL 등록
 - 데이터 형식: text
 - 값:  http://TIO-ALB-173623777.ap-northeast-2.elb……
     
-    ![image.png](image%2023.png)
+    ![image.png](image23.png)
     
     이미지에 보이는 `이름` 은 잘못된 이름이다. 삭제하고 다시만들었는데 스크린샷을 못찍음;;
     
@@ -1581,7 +1581,7 @@ APU URL 등록
 
 똑같이 `Google Client ID` 도 등록해준다. 다만 `보안 문자열` 로 생성한다.
 
-![image.png](image%2024.png)
+![image.png](image24.png)
 
 ### EC2 인스턴스 IAM 역할에 권한 추가:
 
@@ -1613,25 +1613,25 @@ Deployment groups → Create deployment group
 
 1. Deployment group name: TIO-Frontend-DeploymentGroup
     
-    ![image.png](image%2025.png)
+    ![image.png](image25.png)
     
 2. Service role: TIO-CodeDeploy-Role
     
-    ![image.png](image%2026.png)
+    ![image.png](image26.png)
     
 3. Deployment type: In-place
     
-    ![image.png](image%2027.png)
+    ![image.png](image27.png)
     
 4. Environment configuration: Amazon EC2 instances
 • **Key**: Name
 • **Value**: TIO-Frontend-SSR
     
-    ![image.png](image%2028.png)
+    ![image.png](image28.png)
     
 5. Deployment settings: CodeDeployDefault.HalfAtATime
     
-    ![image.png](image%2029.png)
+    ![image.png](image29.png)
     
     스프링 서버와 다른 옵션인 이유
     
@@ -1693,11 +1693,11 @@ Deployment groups → Create deployment group
     
 6. Load balancer
     
-    ![image.png](image%2030.png)
+    ![image.png](image30.png)
     
 7. Create deployment group
     
-    ![image.png](image%2031.png)
+    ![image.png](image31.png)
     
 
 ### **Phase 4: CloudFront 설정 수정**
@@ -1730,18 +1730,18 @@ Behaviors 탭 → Create behavior
 - Path pattern: `/_next/static/*`
 - Origin: [tio-frontend-assets-jungle8th.s3.ap-northeast-2.amazonaws.com](http://tio-frontend-assets-jungle8th.s3.ap-northeast-2.amazonaws.com/)
     
-    ![image.png](image%2032.png)
+    ![image.png](image32.png)
     
 - Viewer protocol policy: Redirect HTTP to HTTPS
 - Allowed HTTP methods: GET, HEAD
     
-    ![image.png](image%2033.png)
+    ![image.png](image33.png)
     
 - Cache policy: CachingOptimized
 - Origin request policy: None
 - Response headers policy: None
     
-    ![image.png](image%2034.png)
+    ![image.png](image34.png)
     
 
 ### **2단계: 기본 동작 수정**
@@ -1804,7 +1804,7 @@ Behaviors 탭 → Create behavior
     OPTIONS /api/*             // CORS preflight
     ```
     
-    ![image.png](image%2035.png)
+    ![image.png](image35.png)
     
 - Cache policy: Managed-CachingDisabled (SSR용)
     
@@ -1866,7 +1866,7 @@ Behaviors 탭 → Create behavior
     브라우저 → CloudFront → ALB → EC2 (Next.js)
     ```
     
-    ![image.png](image%2036.png)
+    ![image.png](image36.png)
     
 - Response headers policy: None
 

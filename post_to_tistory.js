@@ -200,7 +200,6 @@ const CATEGORY_MAP = {
     'React': 'React',
     'Jungle': 'Jungle',
     'OS': '운영체제',
-    '학습': '학습',
     '이야기': '이야기',
     'AWS': 'AWS',
     'SQL': 'SQL',
