@@ -94,52 +94,122 @@ function extractTitle(content) {
     return '제목 없음';
 }
 
-// 클립보드에 복사 (macOS) - Maccy 호환 버전
+// 운영체제 감지
+function getOS() {
+    const platform = process.platform;
+    if (platform === 'darwin') return 'mac';
+    if (platform === 'win32') return 'windows';
+    if (platform === 'linux') {
+        // WSL 환경 체크
+        try {
+            const release = fs.readFileSync('/proc/version', 'utf8');
+            if (release.includes('Microsoft') || release.includes('WSL')) {
+                return 'wsl';
+            }
+        } catch (e) {}
+        return 'linux';
+    }
+    return 'unknown';
+}
+
+// 클립보드에 복사 (크로스 플랫폼)
 async function copyToClipboard(text) {
+    const os = getOS();
+    const tempFile = path.join(PROJECT_ROOT, 'temp_clipboard.html');
+    
     try {
-        // 방법 1: 임시 파일을 사용하여 큰 텍스트 처리
-        const tempFile = path.join(PROJECT_ROOT, 'temp_clipboard.html');
-        fs.writeFileSync(tempFile, text, 'utf-8');
-        
-        // pbcopy로 복사
-        await execAsync(`pbcopy < "${tempFile}"`);
+        if (os === 'mac') {
+            // macOS: pbcopy 사용
+            fs.writeFileSync(tempFile, text, 'utf-8');
+            await execAsync(`pbcopy < "${tempFile}"`);
+            console.log('✅ 클립보드에 복사되었습니다! (Maccy에서 확인 가능)');
+            
+        } else if (os === 'wsl') {
+            // WSL: PowerShell을 통해 UTF-8 인코딩으로 복사
+            const escapedText = text.replace(/'/g, "''").replace(/"/g, '""');
+            await execAsync(`powershell.exe -Command "Set-Clipboard -Value '${escapedText}'"`);
+            console.log('✅ Windows 클립보드에 복사되었습니다!');
+            
+        } else if (os === 'windows') {
+            // Windows: PowerShell 사용 (UTF-8 지원)
+            const escapedText = text.replace(/'/g, "''").replace(/"/g, '""');
+            await execAsync(`powershell -Command "Set-Clipboard -Value '${escapedText}'"`);
+            console.log('✅ Windows 클립보드에 복사되었습니다!');
+            
+        } else if (os === 'linux') {
+            // Linux: xclip 시도
+            fs.writeFileSync(tempFile, text, 'utf-8');
+            try {
+                await execAsync(`xclip -selection clipboard < "${tempFile}"`);
+                console.log('✅ Linux 클립보드에 복사되었습니다!');
+            } catch (e) {
+                throw new Error('xclip이 설치되지 않았습니다. sudo apt install xclip으로 설치하세요.');
+            }
+        } else {
+            throw new Error('지원하지 않는 운영체제입니다.');
+        }
         
         // 임시 파일 삭제
-        fs.unlinkSync(tempFile);
-        
-        console.log('✅ 클립보드에 복사되었습니다! (Maccy에서 확인 가능)');
+        try { fs.unlinkSync(tempFile); } catch (e) {}
         return true;
         
     } catch (error) {
-        console.error('방법 1 실패:', error.message);
+        console.error(`${os} 클립보드 복사 실패:`, error.message);
         
-        try {
-            // 방법 2: osascript 사용 (AppleScript)
-            const tempFile = path.join(PROJECT_ROOT, 'temp_clipboard.html');
-            fs.writeFileSync(tempFile, text, 'utf-8');
-            
-            await execAsync(`osascript -e 'set the clipboard to (read POSIX file "${tempFile}" as «class utf8»)'`);
-            fs.unlinkSync(tempFile);
-            
-            console.log('✅ AppleScript로 클립보드에 복사되었습니다!');
-            return true;
-            
-        } catch (error2) {
-            console.error('방법 2도 실패:', error2.message);
-            
-            // 방법 3: 파일로 저장하고 안내
-            const outputFile = path.join(PROJECT_ROOT, 'tistory_output.html');
-            fs.writeFileSync(outputFile, text, 'utf-8');
-            
-            console.log('\n📄 클립보드 복사에 실패하여 파일로 저장했습니다:');
-            console.log(`   ${outputFile}`);
-            console.log('\n📋 다음 중 하나의 방법을 사용하세요:');
+        // macOS에서 실패한 경우 AppleScript 시도
+        if (os === 'mac') {
+            try {
+                fs.writeFileSync(tempFile, text, 'utf-8');
+                await execAsync(`osascript -e 'set the clipboard to (read POSIX file "${tempFile}" as «class utf8»)'`);
+                fs.unlinkSync(tempFile);
+                console.log('✅ AppleScript로 클립보드에 복사되었습니다!');
+                return true;
+            } catch (error2) {
+                console.error('AppleScript도 실패:', error2.message);
+            }
+        }
+        
+        // WSL/Windows에서 실패한 경우 파일 방식으로 재시도
+        if ((os === 'wsl' || os === 'windows') && !error.message.includes('powershell')) {
+            try {
+                fs.writeFileSync(tempFile, text, 'utf-8');
+                if (os === 'wsl') {
+                    await execAsync(`cat "${tempFile}" | clip.exe`);
+                } else {
+                    await execAsync(`type "${tempFile}" | clip`);
+                }
+                console.log('✅ 파일 방식으로 클립보드에 복사되었습니다!');
+                fs.unlinkSync(tempFile);
+                return true;
+            } catch (error3) {
+                console.error('파일 방식도 실패:', error3.message);
+            }
+        }
+        
+        // 모든 방법 실패 시 파일로 저장
+        const outputFile = path.join(PROJECT_ROOT, 'tistory_output.html');
+        fs.writeFileSync(outputFile, text, 'utf-8');
+        
+        console.log('\n📄 클립보드 복사에 실패하여 파일로 저장했습니다:');
+        console.log(`   ${outputFile}`);
+        console.log('\n📋 다음 중 하나의 방법을 사용하세요:');
+        
+        if (os === 'mac') {
             console.log('   1. 파일을 열어서 Cmd+A → Cmd+C로 복사');
             console.log('   2. 터미널에서: cat tistory_output.html | pbcopy');
             console.log('   3. Maccy 히스토리에서 확인');
-            
-            return false;
+        } else if (os === 'wsl' || os === 'windows') {
+            console.log('   1. 파일을 열어서 Ctrl+A → Ctrl+C로 복사');
+            console.log('   2. PowerShell에서: Get-Content tistory_output.html | Set-Clipboard');
+            console.log('   3. 파일 내용을 직접 복사');
+        } else {
+            console.log('   1. 파일을 열어서 Ctrl+A → Ctrl+C로 복사');
+            console.log('   2. xclip 설치 후: cat tistory_output.html | xclip -selection clipboard');
         }
+        
+        // 임시 파일이 있다면 삭제
+        try { fs.unlinkSync(tempFile); } catch (e) {}
+        return false;
     }
 }
 
